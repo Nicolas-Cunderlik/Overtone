@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from spotistats.ml import features
+from overtone.ml import features
 
 
 def key_points(keys):

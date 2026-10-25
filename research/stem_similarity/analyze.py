@@ -25,7 +25,7 @@ import triplets
 from scipy.optimize import minimize
 
 HERE = Path(__file__).resolve().parent
-ARTIFACTS = HERE.parent.parent / "models" / "similarity"  # the app's trained model (spotistats.ml.paths)
+ARTIFACTS = HERE.parent.parent / "models" / "similarity"  # the app's trained model (overtone.ml.paths)
 N_SPLITS = 100
 TEST_FRACTION = 0.3
 L2 = 1.0

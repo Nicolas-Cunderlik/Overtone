@@ -9,7 +9,7 @@ live version or remix isn't silently swapped in.
 Deezer preview URLs are signed and expire, so the MP3s are cached under
 audio/ (gitignored, never redistributed).
 
-Run with the app venv (spotistats is installed there):
+Run with the app venv (overtone is installed there):
   .venv/Scripts/python research/stem_similarity/fetch_previews.py
 """
 
@@ -21,8 +21,8 @@ import urllib.request
 
 import pandas as pd
 
-from spotistats.ml import dedup, features
-from spotistats.ml.paths import CSV_PATH
+from overtone.ml import dedup, features
+from overtone.ml.paths import CSV_PATH
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AUDIO_DIR = os.path.join(HERE, "audio")

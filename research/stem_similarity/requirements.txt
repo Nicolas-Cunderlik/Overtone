@@ -13,6 +13,6 @@ pandas==3.0.6
 scipy==1.18.1
 scikit-learn==1.9.1
 joblib==1.6.0
-platformdirs==4.13.5  # spotistats.config
+platformdirs==4.13.5  # overtone.config
 pytest==9.1.1
 mlflow==3.17.2  # experiment tracking (stemsim/tracking.py)

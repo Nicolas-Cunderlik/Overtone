@@ -1,5 +1,5 @@
 """
-Filename: spotistats/ui/fullscreen_image.py
+Filename: overtone/ui/fullscreen_image.py
 Author: Nicolas Cunderlik
 Date: 2025
 Description: Fullscreen album-cover window (Esc or Space closes it).

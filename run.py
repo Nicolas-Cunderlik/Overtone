@@ -1,8 +1,8 @@
-"""Script entry point for PyInstaller (app.spec) - same as `python -m spotistats`."""
+"""Script entry point for PyInstaller (app.spec) - same as `python -m overtone`."""
 
 import sys
 
-from spotistats.__main__ import main
+from overtone.__main__ import main
 
 if __name__ == "__main__":
     sys.exit(main())

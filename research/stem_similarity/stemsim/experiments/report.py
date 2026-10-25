@@ -112,10 +112,6 @@ def log(run_id, text):
     MlflowClient().log_text(run_id, text, ARTIFACT)
 
 
-def has_report(run_id):
-    return any(f.path == ARTIFACT for f in MlflowClient().list_artifacts(run_id))
-
-
 def update(run_id, sections=None, status=None):
     text = mlflow.artifacts.load_text(f"runs:/{run_id}/{ARTIFACT}")
     log(run_id, edit(text, sections, status))

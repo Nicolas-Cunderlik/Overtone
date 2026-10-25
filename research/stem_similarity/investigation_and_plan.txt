@@ -1,11 +1,11 @@
 STEM-BASED PERCEPTUAL SONG SIMILARITY - INVESTIGATION AND PLAN
-Spotistats research track, started 2026-10-19
+Overtone research track, started 2026-10-19
 
 ======================================================================
 1. MOTIVATION
 ======================================================================
 
-Spotistats recommends similar songs with a k-nearest-neighbor search over
+Overtone recommends similar songs with a k-nearest-neighbor search over
 Spotify's legacy audio features (danceability, energy, valence, tempo, ...)
 for a static catalog of ~25.6k songs (TidyTuesday Spotify dataset, 2020).
 

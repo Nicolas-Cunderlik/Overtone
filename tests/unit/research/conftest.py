@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 # stemsim is a research package, not installed - import it from its folder
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "research" / "stem_similarity"))
 
 from stemsim.registry import Registry  # noqa: E402
 

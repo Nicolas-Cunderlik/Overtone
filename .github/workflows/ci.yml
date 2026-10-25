@@ -38,5 +38,5 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install -e ".[dev]"
-      # The research pipeline's normalization layer is pure Python - test it too
-      - run: pytest tests/unit research/stem_similarity/tests
+      # Includes tests/unit/research: the research pipeline's normalization layer is pure Python
+      - run: pytest tests/unit

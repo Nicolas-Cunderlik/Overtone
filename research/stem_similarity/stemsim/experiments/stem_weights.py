@@ -41,7 +41,6 @@ Uncertainty (bootstrap, 95%)
 """
 
 import argparse
-import io
 import json
 import logging
 import time
@@ -266,7 +265,7 @@ def fixed_models(D):
 
 def app_model_scores(rows):
     """Current app similarity (Spotify features + genre embedding) for pilot tracks."""
-    from spotistats.ml.similarity_model import SimilarityModel
+    from overtone.ml.similarity_model import SimilarityModel
 
     model = SimilarityModel()
     Z = model.Z / np.linalg.norm(model.Z, axis=1, keepdims=True)
@@ -364,40 +363,13 @@ def write_report(run, table, diff_table, weights, runtime_s=None):
     report.log(run.info.run_id, text)
 
 
-def backfill_report(name_or_id, overwrite=False):
-    """Write report.md for a run made before reports existed, from its CSV/JSON
-    artifacts. Refuses to replace an existing report (it may hold written
-    findings) unless `overwrite`."""
-    mlflow.set_tracking_uri(tracking.tracking_uri())
-    run = report.resolve_run(name_or_id)
-    run_id = run.info.run_id
-    if report.has_report(run_id) and not overwrite:
-        raise SystemExit(
-            f"{run.info.run_name} already has {report.ARTIFACT} - edit sections with stemsim.experiments.report, "
-            "or pass --overwrite-report to regenerate it (discards written sections)"
-        )
-    names = {f.path for f in mlflow.tracking.MlflowClient().list_artifacts(run_id)}
-
-    def load(name):
-        return mlflow.artifacts.load_text(f"runs:/{run_id}/{name}")
-
-    table = pd.read_csv(io.StringIO(load("results.csv")))
-    diff_table = pd.read_csv(io.StringIO(load("differences.csv"))) if "differences.csv" in names else None
-    write_report(run, table, diff_table, json.loads(load("weights.json")))
-    print(f"wrote {report.ARTIFACT} for {run.info.run_name}")
-
-
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--run-name", default="stem-weights")
     parser.add_argument("--l2", type=float, default=1.0)
     parser.add_argument("--folds", type=int, default=5)
-    parser.add_argument("--report-for", metavar="RUN", help="only write report.md for an older run (name or id)")
-    parser.add_argument("--overwrite-report", action="store_true", help="with --report-for: replace an existing one")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-    if args.report_for:
-        return backfill_report(args.report_for, args.overwrite_report)
     started = time.perf_counter()
 
     registry = Registry()

@@ -22,8 +22,8 @@ import logging
 import time
 import urllib.error
 
-from spotistats.ml import dedup
-from spotistats.secrets import get_secret
+from overtone.ml import dedup
+from overtone.secrets import get_secret
 
 from ..schema import BEHAVIORAL, NDCG, PAIR, Judgment, Membership, NormalizedDataset, song_track, song_track_id
 from .base import DatasetAdapter, RateLimiter, http_get, write_json_atomic

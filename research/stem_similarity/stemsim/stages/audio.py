@@ -21,7 +21,7 @@ import os
 import urllib.error
 import zipfile
 
-from spotistats.ml import dedup
+from overtone.ml import dedup
 
 from .. import config
 from ..datasets.base import RateLimiter, download, http_get

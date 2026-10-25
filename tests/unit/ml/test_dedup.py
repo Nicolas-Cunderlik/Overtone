@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from spotistats.ml import dedup
+from overtone.ml import dedup
 
 
 @pytest.mark.parametrize(
