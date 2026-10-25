@@ -1,4 +1,4 @@
-"""Main GUI for Spotistats using services and worker threads for network tasks."""
+"""Main GUI for Overtone using services and worker threads for network tasks."""
 
 import logging
 import os
@@ -129,7 +129,7 @@ class SpotifyApp(QWidget):
         self.body_layout = QVBoxLayout()
         self.body_stats_layout = QHBoxLayout()
 
-        self.title_label = QLabel("SPOTISTATS")
+        self.title_label = QLabel("OVERTONE")
 
         self.album_cover_label = QLabel(self)
         self.album_cover_label.setPixmap(QPixmap(CARD_WIDTH, CARD_WIDTH))

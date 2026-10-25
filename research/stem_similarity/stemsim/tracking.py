@@ -5,6 +5,8 @@ Every run records, besides its own params/metrics/artifacts:
   data.*                  how many judgments and embedded tracks each dataset
                           had at the time - results change as data lands, and
                           this is what makes two runs comparable
+  report.md               purpose, approach, results and findings in prose
+                          (experiments/report.py; findings are added later)
 Browse runs:  research/stem_similarity/.venv/Scripts/mlflow ui --backend-store-uri sqlite:///data/mlflow.db
 (run from research/stem_similarity), then open http://127.0.0.1:5000
 """

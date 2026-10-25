@@ -1,6 +1,6 @@
 import pytest
 
-from spotistats.music import midi
+from overtone.music import midi
 
 
 @pytest.mark.parametrize(

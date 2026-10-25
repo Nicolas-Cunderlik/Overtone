@@ -27,7 +27,7 @@ results are always reported per dataset and never averaged across targets.
 
 from dataclasses import dataclass, field
 
-from spotistats.ml import dedup
+from overtone.ml import dedup
 
 TRIPLET = "triplet"
 PAIR = "pair"

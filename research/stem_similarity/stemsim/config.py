@@ -9,5 +9,5 @@ DATA_DIR = Path(os.environ.get("STEMSIM_DATA_DIR", ROOT / "data"))
 DB_FILE = "registry.sqlite"
 
 # Identifies the client to the APIs we call (Last.fm asks for an identifiable agent)
-USER_AGENT = "Spotistats-research/0.1 (personal music-similarity research)"
+USER_AGENT = "Overtone-research/0.1 (personal music-similarity research)"
 HTTP_TIMEOUT_S = 30

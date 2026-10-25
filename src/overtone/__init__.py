@@ -1,3 +1,3 @@
-"""Spotistats package init"""
+"""Overtone package init"""
 
 __all__ = ["ui", "services", "workers", "utils"]

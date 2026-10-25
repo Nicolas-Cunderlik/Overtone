@@ -2,7 +2,7 @@
 song-similarity NearestNeighbors index over it for the full track catalog, and
 persists both for the live app to load.
 
-Run: python -m spotistats.ml.train
+Run: python -m overtone.ml.train
 """
 
 import os

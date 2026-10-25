@@ -15,14 +15,14 @@ __pycache__/
 build/
 dist/
 
-# Downloaded dataset and trained models (regenerable: python -m spotistats.ml.download_dataset / .train)
+# Downloaded dataset and trained models (regenerable: python -m overtone.ml.download_dataset / .train)
 data/
 models/
 
 # Optional title font (licensed separately)
 *.ttf
 
-# Logs and caches - the app writes these to %LOCALAPPDATA%\Spotistats, but
+# Logs and caches - the app writes these to %LOCALAPPDATA%\Overtone, but
 # older versions wrote them into the repo
 *.log
 *.cache

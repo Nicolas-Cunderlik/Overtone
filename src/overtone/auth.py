@@ -1,5 +1,5 @@
 """
-Filename: src/spotistats/auth.py
+Filename: src/overtone/auth.py
 Author: Nicolas Cunderlik
 Date: 2025
 Description: Authorization tools for accessing the Spotify and OpenAI services.

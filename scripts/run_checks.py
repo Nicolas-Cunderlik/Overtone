@@ -11,7 +11,7 @@ def main():
     python = venv_python(APP_VENV)
     steps = [
         ("pre-commit", [python, "-m", "pre_commit", "run", "--all-files"]),
-        ("tests", [python, "-m", "pytest", "-q", "tests/unit", "research/stem_similarity/tests"]),
+        ("tests", [python, "-m", "pytest", "-q", "tests/unit"]),
     ]
     failed = []
     for name, command in steps:
