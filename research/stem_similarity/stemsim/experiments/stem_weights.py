@@ -52,9 +52,8 @@ from scipy.optimize import minimize
 from scipy.stats import spearmanr
 from sklearn.model_selection import GroupKFold
 
-from .. import tracking
+from .. import config, tracking
 from ..registry import Registry
-from ..stages.embed import STAGE as EMBED_STAGE
 from . import report
 
 logger = logging.getLogger(__name__)
@@ -67,6 +66,7 @@ HELD_OUT_PAIRS = ("ccmsim",)
 Z_SAMPLE_PAIRS = 20_000
 BOOTSTRAP = 2_000
 WEIGHT_BOOTSTRAP = 500  # each resample is a full refit
+L2 = 1.0
 SEED = 0
 BASELINE = "mix only"
 APP_MODEL = "app model (current)"
@@ -97,10 +97,10 @@ class Vectors:
 
     def get(self, track_id, window=None):
         if track_id not in self._files:
-            out = self.registry.output(track_id, EMBED_STAGE)
+            out = self.registry.output(track_id, config.EMBED_STAGE)
             self._files[track_id] = None if out is None else dict(np.load(out[0]))
         data = self._files[track_id]
-        if data is None or not len(data["windows"]):  # 3 catalog files were written with no windows
+        if data is None or not len(data["windows"]):  # an embed file with no windows counts as missing
             return None
         index = 0  # full audio
         if window is not None:
@@ -275,7 +275,7 @@ def app_model_scores(rows):
     Z = model.Z / np.linalg.norm(model.Z, axis=1, keepdims=True)
     scores = []
     for row in rows:
-        ids = [model._row_by_id.get(t.split(":", 1)[1]) for t in (row["a"], row["b"], row["c"])]
+        ids = [model.row_of(t.split(":", 1)[1]) for t in (row["a"], row["b"], row["c"])]
         scores.append(np.nan if None in ids else float(Z[ids[0]] @ Z[ids[1]] - Z[ids[0]] @ Z[ids[2]]))
     return np.array(scores)
 
@@ -370,7 +370,7 @@ def write_report(run, table, diff_table, weights, runtime_s=None):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--run-name", default="stem-weights")
-    parser.add_argument("--l2", type=float, default=1.0)
+    parser.add_argument("--l2", type=float, default=L2)
     parser.add_argument("--folds", type=int, default=5)
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -472,11 +472,11 @@ def main(argv=None):
         "l2": args.l2,
         "folds": args.folds,
         "silent_db": SILENT_DB,
-        "embedding": EMBED_STAGE,
+        "embedding": config.EMBED_STAGE,
         "fit_sets": ",".join(FIT_SETS),
         "held_out": ",".join((*HELD_OUT_TRIPLETS, *HELD_OUT_PAIRS)),
     }
-    with tracking.run("stem-weights", args.run_name, registry, EMBED_STAGE, params) as active:
+    with tracking.run("stem-weights", args.run_name, registry, config.EMBED_STAGE, params) as active:
         for row in table.itertuples():
             if not np.isnan(row.agreement):
                 mlflow.log_metric(_metric_key(row.dataset, row.subset, row.model), row.agreement)

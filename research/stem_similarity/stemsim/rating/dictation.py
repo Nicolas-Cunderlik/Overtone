@@ -10,8 +10,8 @@ Choices, measured on a 14 s spoken note full of production jargon:
 CPU int8 keeps the GPU free for pipeline stages running alongside.
 
 Audio never touches disk: the browser decodes its recording to 16 kHz mono
-float32 samples and posts those (so the server needs no codec - PyAV 19 also
-breaks faster-whisper 1.2.1's file decoding), and only the text is kept.
+float32 samples and posts those, so the server needs no codec (PyAV 19 also
+breaks faster-whisper 1.2.1's file decoding). Only the text is kept.
 
 The model is a plain folder under data/models/whisper/, not the Hugging Face
 cache, whose symlinks need admin rights or Developer Mode on Windows.
@@ -21,7 +21,8 @@ import logging
 import threading
 
 import numpy as np
-from stemsim import config
+
+from .. import config
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ MODEL = "small.en"
 MODEL_DIR = config.DATA_DIR / "models" / "whisper"
 SAMPLE_RATE = 16_000
 MAX_SECONDS = 120
-# Whisper spells jargon better when it has seen it (see the table above)
+# Whisper spells jargon better when the prompt contains it (table above)
 PROMPT = (
     "Music production notes comparing songs: reese bass, 808, sub bass, kick, snare, hi-hats, claps, "
     "percussion, pads, synths, arpeggios, vocal chops, reverb, delay, sidechain, groove, lo-fi."

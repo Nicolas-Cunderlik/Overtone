@@ -1,7 +1,8 @@
-"""stemsim.ratings: the rating format and song splits."""
+"""stemsim.rating.ratings: the rating format and song splits."""
 
 import pytest
-from stemsim import ratings
+from stemsim import config
+from stemsim.rating import ratings
 
 
 def row(**changes):
@@ -17,13 +18,18 @@ def row(**changes):
         "b": "song:b",
         "play": "mix",
         "audio": {clip: {"source": "deezer", "ref": f"audio/deezer/{clip}.mp3"} for clip in ratings.CLIPS},
+        "stems": None,
         "window": None,
+        "repeat_of": None,
+        "selection": {"rule": ratings.NEIGHBOURHOOD},
         "choice": ratings.A,
         "strength": ratings.CLEARLY,
         "strength_source": "rater",
         "tags": ["bass"],
         "note": "",
         "bad_clip": None,
+        "timing": {"total_ms": 30000},
+        "rated_at": "2026-10-25T20:00:00",
     }
     return base | changes
 
@@ -55,15 +61,22 @@ def test_check_accepts_valid_rows():
     assert ratings.check(row(choice=ratings.TIE, strength=None, strength_source=None)) == []
     bad = {"clips": ["b"], "reason": "dialogue"}
     assert ratings.check(row(choice=ratings.BAD_CLIP, strength=None, strength_source=None, bad_clip=bad)) == []
-    # only pilot rows may lack a strength (no note to infer it from)
-    assert ratings.check(row(design="near_far", strength=None, strength_source=None)) == []
+    assert ratings.check(row(design=ratings.PILOT, session="pilot")) == []
+
+
+def test_check_wants_exactly_the_format_fields():
+    extra, missing = row(legacy_id=0), row()
+    del missing["timing"]
+    assert any("unknown ['legacy_id']" in p for p in ratings.check(extra))
+    assert any("missing ['timing']" in p for p in ratings.check(missing))
 
 
 @pytest.mark.parametrize(
     ("changes", "expected"),
     [
         ({"strength": None, "strength_source": None}, "needs strength"),
-        ({"strength": 3}, "strength must be"),
+        ({"strength": 3}, "needs strength"),
+        ({"design": ratings.PILOT, "strength": None, "strength_source": None}, "needs strength"),
         ({"strength_source": None}, "strength_source"),
         ({"choice": ratings.TIE, "strength_source": None}, "takes no strength"),
         ({"choice": ratings.BAD_CLIP, "strength": None, "strength_source": None}, "bad_clip needs clips"),
@@ -95,9 +108,8 @@ def test_flagged_tracks():
 
 
 def test_every_checked_in_rating_is_valid():
-    from stemsim.config import ROOT
-
-    rows = ratings.load_jsonl(ROOT / "ratings.jsonl")
+    rows = ratings.load_jsonl(config.RATINGS_FILE)
     assert rows
     assert {r["id"]: ratings.check(r) for r in rows if ratings.check(r)} == {}
     assert len({r["id"] for r in rows}) == len(rows)
+    assert {tuple(r) for r in rows} == {ratings.FIELDS}  # one schema, one field order

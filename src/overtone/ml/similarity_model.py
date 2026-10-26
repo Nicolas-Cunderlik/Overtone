@@ -69,8 +69,12 @@ class SimilarityModel:
     def has_track(self, track_id):
         return track_id in self._row_by_id
 
+    def row_of(self, track_id):
+        """The catalog row of a track (or of any deduplicated copy of it), or None."""
+        return self._row_by_id.get(track_id)
+
     def find_similar(self, track_id, k=3):
-        row = self._row_by_id.get(track_id)
+        row = self.row_of(track_id)
         if row is None:
             return []
         return self._search(self.Z[row : row + 1], k, exclude_row=row)

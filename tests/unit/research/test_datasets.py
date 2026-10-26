@@ -113,9 +113,10 @@ def rating(rating_id, x="song:x", a="song:a", b="song:b", source="deezer", windo
              (("x", x), ("a", a), ("b", b))}  # fmt: skip
     row = {
         "v": 2, "id": rating_id, "rater_id": "rater2", "session": "s1", "design": "neighbourhood",
-        "split": "fit", "x": x, "a": a, "b": b, "play": "mix", "audio": audio,
-        "window": window, "choice": "b", "strength": 1, "strength_source": "rater", "tags": ["bass"],
-        "note": "", "bad_clip": None, "timing": {"total_ms": 40000},
+        "split": "fit", "x": x, "a": a, "b": b, "play": "mix", "audio": audio, "stems": None,
+        "window": window, "repeat_of": None, "selection": {"rule": "neighbourhood"}, "choice": "b", "strength": 1,
+        "strength_source": "rater", "tags": ["bass"], "note": "", "bad_clip": None, "timing": {"total_ms": 40000},
+        "rated_at": "2026-10-25T20:00:00",
     }  # fmt: skip
     return row | changes
 
@@ -123,7 +124,7 @@ def rating(rating_id, x="song:x", a="song:a", b="song:b", source="deezer", windo
 def pilot_rating(rating_id, **changes):
     return rating(
         rating_id, x="pilot:x", a="pilot:y", b="pilot:z", source="pilot", window=[10.0, 20.0],
-        session="pilot", rater_id="nicolas", split="validation", design="near_far", **changes,
+        session="pilot", rater_id="nicolas", split="validation", design="pilot", **changes,
     )  # fmt: skip
 
 

@@ -1,8 +1,8 @@
-"""stemsim.committee on small synthetic pools - no registry, no embeddings on disk."""
+"""stemsim.rating.committee on small synthetic pools - no registry, no embeddings on disk."""
 
 import numpy as np
 import pytest
-from stemsim import committee
+from stemsim.rating import committee
 
 CHANNELS = 5  # mix, drums, bass, vocals, other
 D = 4
@@ -32,7 +32,7 @@ def pool():
     )
     return committee.Pool(
         ids=["x", "a", "b", "c", "e"],
-        emb=emb,
+        emb=emb.transpose(1, 0, 2),  # channel-major
         audible=np.ones((5, CHANNELS), bool),
         artists=np.array(["p", "q", "r", "s", "t"]),
     )
@@ -55,15 +55,17 @@ def test_zsim_gates_silent_stems(pool):
     pool.audible[1, 1] = False  # a has no drums
     pool.audible[1:3, 2] = False  # neither a nor b has bass; x does
     pool.audible[0, 3] = pool.audible[1, 3] = False  # neither x nor a has vocals
-    z = pool.zsim(0, [1, 2], (np.zeros(CHANNELS), np.ones(CHANNELS)))
-    assert z[0, 1] == -1.0  # one song has drums, the other doesn't
-    assert z[0, 2] == -1.0
-    assert z[0, 3] == 0.0  # silent in both: no evidence
-    assert z[0, 0] == pytest.approx(1.0)  # same mix direction
+    z = pool.zsim(0, (np.zeros(CHANNELS), np.ones(CHANNELS)))
+    assert z.shape == (5, CHANNELS)  # x against every row
+    assert z[1, 1] == -1.0  # one song has drums, the other doesn't
+    assert z[1, 2] == -1.0
+    assert z[1, 3] == 0.0  # silent in both: no evidence
+    assert z[1, 0] == pytest.approx(1.0)  # same mix direction
 
 
 def test_a_unanimous_committee_has_no_disagreement(pool):
-    share, families = make_committee([[1, 0, 0, 0, 0]]).split(pool, 0, [3], [4])  # c matches x, e doesn't
+    comm = make_committee([[1, 0, 0, 0, 0]])
+    share, families = comm.split(comm.scores(pool, 0), [3], [4])  # c matches x, e doesn't
     assert share[0] == 1.0
     assert committee.disagreement(share)[0] == 0.0
     assert np.isnan(families["app"][0])  # no app vectors: the app abstains
@@ -71,7 +73,8 @@ def test_a_unanimous_committee_has_no_disagreement(pool):
 
 def test_mix_vs_stems_splits_the_committee(pool):
     # posterior half mix-led, half stem-led; datasets stem-led; baselines mix-led -> an even split
-    share, families = make_committee([[1, 0, 0, 0, 0], [0, 1, 1, 1, 1]]).split(pool, 0, [1], [2])
+    comm = make_committee([[1, 0, 0, 0, 0], [0, 1, 1, 1, 1]])
+    share, families = comm.split(comm.scores(pool, 0), [1], [2])
     assert (families["posterior"][0], families["datasets"][0], families["baselines"][0]) == (0.5, 0.0, 1.0)
     assert share[0] == pytest.approx(0.5)
     assert committee.disagreement(share)[0] == pytest.approx(1.0)
@@ -79,15 +82,17 @@ def test_mix_vs_stems_splits_the_committee(pool):
 
 def test_app_votes_when_it_knows_all_three(pool):
     pool.app = unit([1, 0], [1, 0], [0, 1], [1, 0], [0, 1])
-    share, families = make_committee([[1, 0, 0, 0, 0]]).split(pool, 0, [1], [2])
+    comm = make_committee([[1, 0, 0, 0, 0]])
+    share, families = comm.split(comm.scores(pool, 0), [1], [2])
     assert families["app"][0] == 1.0  # a is identical to x in app space
     pool.app[2] = np.nan
-    _, families = make_committee([[1, 0, 0, 0, 0]]).split(pool, 0, [1], [2])
+    _, families = comm.split(comm.scores(pool, 0), [1], [2])
     assert np.isnan(families["app"][0])
 
 
 def test_top_k_per_model(pool):
-    top = make_committee([[1, 0, 0, 0, 0]]).top_k(pool, 0, [1, 2, 3], k=2)
+    comm = make_committee([[1, 0, 0, 0, 0]])
+    top = comm.top_k(comm.scores(pool, 0), [1, 2, 3], k=2)
     assert set(top["mix"]) == {1, 3}  # a and c share x's mix
     assert set(top["fitted"]) == {2, 3}  # b and c share x's stems
     assert "app" not in top

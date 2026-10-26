@@ -1,10 +1,10 @@
-"""dictation.py with a stand-in model - no Whisper, no download."""
+"""stemsim.rating.dictation with a stand-in model - no Whisper, no download."""
 
 from types import SimpleNamespace
 
-import dictation
 import numpy as np
 import pytest
+from stemsim.rating import dictation
 
 
 class FakeModel:

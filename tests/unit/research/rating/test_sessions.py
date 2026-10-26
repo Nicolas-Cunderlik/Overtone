@@ -1,10 +1,10 @@
-"""stemsim.sessions' selection rules on a synthetic pool - no registry, no embeddings on disk."""
+"""stemsim.rating.sessions' selection rules on a synthetic pool - no registry, no embeddings on disk."""
 
 import random
 
 import numpy as np
 import pytest
-from stemsim import committee, ratings, sessions
+from stemsim.rating import committee, ratings, sessions
 
 CHANNELS, D, N = 5, 8, 60
 
@@ -15,7 +15,9 @@ def pool():
     emb = rng.normal(size=(N, CHANNELS, D)).astype(np.float32)
     emb /= np.linalg.norm(emb, axis=-1, keepdims=True)
     artists = np.array([f"artist {i // 2}" for i in range(N)])  # two songs per artist
-    return committee.Pool([f"song:{i}" for i in range(N)], emb, np.ones((N, CHANNELS), bool), artists)
+    return committee.Pool(
+        [f"song:{i}" for i in range(N)], emb.transpose(1, 0, 2), np.ones((N, CHANNELS), bool), artists
+    )
 
 
 @pytest.fixture
@@ -61,7 +63,7 @@ def test_contested_triplets_are_the_most_even_splits(pool, comm):
     assert scores == sorted(scores, reverse=True)
     for x, a, b, sel in picked:  # the recorded split is the committee's
         row = pool.row
-        share, _ = comm.split(pool, row[x], [row[a]], [row[b]])
+        share, _ = comm.split(comm.scores(pool, row[x]), [row[a]], [row[b]])
         assert sel["share_a"] == pytest.approx(share[0], abs=1e-3)
 
 
@@ -90,7 +92,7 @@ def test_pick_shared_keeps_fit_songs_and_hides_the_crowd_answer_in_selection():
 def rated(rating_id, **changes):
     row = {
         "id": rating_id, "session": "nicolas-001", "design": "neighbourhood", "split": "fit", "choice": "a",
-        "x": "song:x", "a": "song:a", "b": "song:b", "play": "mix", "window": None, "stems": None,
+        "x": "song:x", "a": "song:a", "b": "song:b", "play": "mix", "window": None, "stems": None, "repeat_of": None,
         "audio": {k: {"source": "deezer", "ref": f"audio/{k}.mp3"} for k in "xab"},
     }  # fmt: skip
     return row | changes

@@ -1,10 +1,9 @@
-"""rate_server.py: sessions, answers and byte ranges - no HTTP, no browser."""
+"""stemsim.rating.server: sessions, answers and byte ranges - no HTTP, no browser."""
 
 import json
 
 import pytest
-import rate_server
-from stemsim import ratings
+from stemsim.rating import ratings, server
 
 
 def session_row(row_id, play="mix", **changes):
@@ -34,7 +33,7 @@ def session(tmp_path):
         for ref in (f"audio/deezer/{k}.mp3", f"stems/{k}/drums.flac"):
             (tmp_path / ref).parent.mkdir(parents=True, exist_ok=True)
             (tmp_path / ref).write_bytes(b"audio")
-    return rate_server.Session(path, "rater1", tmp_path / "ratings.jsonl", data_dir=tmp_path)
+    return server.Session(path, "rater1", tmp_path / "ratings.jsonl", data_dir=tmp_path)
 
 
 def answer(row_id, **changes):
@@ -92,12 +91,12 @@ def test_audio_file_serves_the_mix_or_the_played_stem_only(session):
 
 def test_consistency_compares_direction_across_a_swap():
     rows = [
-        {"id": "1", "choice": "a"},
+        {"id": "1", "choice": "a", "repeat_of": None},
         {"id": "2", "choice": "b", "repeat_of": "1"},  # swapped A/B, same opinion
-        {"id": "3", "choice": "a"},
+        {"id": "3", "choice": "a", "repeat_of": None},
         {"id": "4", "choice": "a", "repeat_of": "3"},  # changed its mind
     ]
-    assert rate_server.consistency(rows) == {"consistent": 1, "checked": 2}
+    assert server.consistency(rows) == {"consistent": 1, "checked": 2}
 
 
 @pytest.mark.parametrize(
@@ -111,10 +110,17 @@ def test_consistency_compares_direction_across_a_swap():
     ],
 )
 def test_byte_range(header, expected):
-    assert rate_server.byte_range(header, 100) == expected
+    assert server.byte_range(header, 100) == expected
 
 
 def test_byte_range_rejects_what_cannot_be_served():
     with pytest.raises(ValueError):
-        rate_server.byte_range("bytes=200-", 100)
-    assert rate_server.byte_range("bytes=0-1,5-6", 100) is None  # multi-range: send the whole file
+        server.byte_range("bytes=200-", 100)
+    assert server.byte_range("bytes=0-1,5-6", 100) is None  # multi-range: send the whole file
+
+
+def test_page_reads_only_config_keys_the_server_sends():
+    import re
+
+    used = set(re.findall(r"CFG\.(\w+)", (server.PAGE).read_text(encoding="utf-8")))
+    assert used and used <= set(server.PAGE_CONFIG)

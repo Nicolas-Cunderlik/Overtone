@@ -143,19 +143,11 @@
 </main>
 
 <script>
-const TAGS = ["drums", "bass", "vocals", "instruments", "production/atmosphere"];
-const LEVELS = [
-  { choice: "a", strength: 2, label: "A clearly", key: "q" },
-  { choice: "a", strength: 1, label: "A slightly", key: "w" },
-  { choice: "tie", strength: null, label: "Can't tell", key: "e" },
-  { choice: "b", strength: 1, label: "B slightly", key: "r" },
-  { choice: "b", strength: 2, label: "B clearly", key: "t" },
-];
-const CLIPS = ["x", "a", "b"];
-const BAD_REASONS = { silence: "Silence", dialogue: "Dialogue / no music", wrong_version: "Wrong version", other: "Other" };
-const STEM_NAMES = { mix: "Full mix", drums: "Drums only", bass: "Bass only", vocals: "Vocals only", other: "Other instruments only" };
+// Values of the rating format come from /api/config (stemsim/ratings.py); only display text lives here.
+let CFG, CLIPS, LEVELS;
+const REASON_LABELS = { silence: "Silence", dialogue: "Dialogue / no music", wrong_version: "Wrong version" };
+const PLAY_LABELS = { drums: "Drums only", bass: "Bass only", vocals: "Vocals only", other: "Other instruments only" };
 const SEEK_STEP_S = 5;
-const WHISPER_RATE = 16000;  // dictation.SAMPLE_RATE
 const MIC_IDLE = "Dictate <kbd>M</kbd>", MIC_REC = "■ Stop <kbd>M</kbd>";
 const $ = (id) => document.getElementById(id);
 const now = () => performance.now();
@@ -165,59 +157,81 @@ let bad = { clips: new Set(), reason: null };
 const cache = new Map();  // url -> Audio, so the next triplet's clips load while this one is rated
 let t = null;             // timing for the current triplet
 let dictationStatus = "off", rec = null, transcribing = false;
+const clipEls = {};       // clip -> its fill, knob and time elements, updated every frame
 
 // --- building the page -------------------------------------------------------
 
-for (const k of CLIPS) {
-  const el = document.createElement("div");
-  el.className = `clip ${k === "x" ? "x" : ""}`;
-  el.dataset.k = k;
-  el.innerHTML = `<div class="label">${k.toUpperCase()}</div>
-    <div class="hint">${k === "x" ? "reference · " : ""}<kbd>${CLIPS.indexOf(k) + 1}</kbd></div>
-    <div class="seek"><div class="track"></div><div class="fill"></div><div class="knob"></div></div>
-    <div class="time">0:00 / 0:00</div>`;
-  el.onclick = () => play(k);
-  const bar = el.querySelector(".seek");
-  bar.addEventListener("pointerdown", (e) => {
-    e.stopPropagation(); if (!t) return; bar.setPointerCapture(e.pointerId); bar.dragging = true; t.seeks++; seekTo(k, frac(bar, e));
+async function init() {
+  CFG = await fetch("/api/config").then((r) => r.json());
+  CLIPS = CFG.clips;
+  const { a, b, tie } = CFG.choices, { slightly, clearly } = CFG.strengths;
+  LEVELS = [
+    { choice: a, strength: clearly, label: "A clearly", key: "q" },
+    { choice: a, strength: slightly, label: "A slightly", key: "w" },
+    { choice: tie, strength: null, label: "Can't tell", key: "e" },
+    { choice: b, strength: slightly, label: "B slightly", key: "r" },
+    { choice: b, strength: clearly, label: "B clearly", key: "t" },
+  ];
+  buildPage();
+  requestAnimationFrame(frame);
+  load();
+}
+
+function buildPage() {
+  for (const k of CLIPS) {
+    const el = document.createElement("div");
+    el.className = `clip ${k === "x" ? "x" : ""}`;
+    el.dataset.k = k;
+    el.innerHTML = `<div class="label">${k.toUpperCase()}</div>
+      <div class="hint">${k === "x" ? "reference · " : ""}<kbd>${CLIPS.indexOf(k) + 1}</kbd></div>
+      <div class="seek"><div class="track"></div><div class="fill"></div><div class="knob"></div></div>
+      <div class="time">0:00 / 0:00</div>`;
+    el.onclick = () => play(k);
+    const bar = el.querySelector(".seek");
+    bar.addEventListener("pointerdown", (e) => {
+      e.stopPropagation(); if (!t) return; bar.setPointerCapture(e.pointerId); bar.dragging = true; t.seeks++; seekTo(k, frac(bar, e));
+    });
+    bar.addEventListener("pointermove", (e) => { if (bar.dragging) seekTo(k, frac(bar, e)); });
+    bar.addEventListener("pointerup", () => { bar.dragging = false; });
+    bar.addEventListener("click", (e) => e.stopPropagation());
+    clipEls[k] = { fill: el.querySelector(".fill"), knob: el.querySelector(".knob"), time: el.querySelector(".time") };
+    $("players").appendChild(el);
+  }
+
+  LEVELS.forEach((lv, i) => {
+    const b = document.createElement("button");
+    b.className = "level"; b.dataset.i = i;
+    b.innerHTML = `${lv.label}<small><kbd>${lv.key.toUpperCase()}</kbd></small>`;
+    b.onclick = () => choose(i);
+    $("scale").appendChild(b);
   });
-  bar.addEventListener("pointermove", (e) => { if (bar.dragging) seekTo(k, frac(bar, e)); });
-  bar.addEventListener("pointerup", () => { bar.dragging = false; });
-  bar.addEventListener("click", (e) => e.stopPropagation());
-  $("players").appendChild(el);
+
+  for (const tag of CFG.tags) {
+    const b = document.createElement("button");
+    b.className = "tag"; b.textContent = tag; b.dataset.tag = tag;
+    b.onclick = () => { tags.has(tag) ? tags.delete(tag) : tags.add(tag); b.classList.toggle("on"); };
+    $("tags").appendChild(b);
+  }
+
+  for (const k of CLIPS) {
+    const b = document.createElement("button");
+    b.className = "tag"; b.textContent = k.toUpperCase(); b.dataset.clip = k;
+    b.onclick = () => { bad.clips.has(k) ? bad.clips.delete(k) : bad.clips.add(k); b.classList.toggle("on"); refreshBad(); };
+    $("badClips").appendChild(b);
+  }
+  for (const reason of CFG.bad_clip_reasons) {
+    const b = document.createElement("button");
+    b.className = "tag"; b.textContent = REASON_LABELS[reason] ?? capitalize(reason); b.dataset.reason = reason;
+    b.onclick = () => {
+      bad.reason = reason;
+      document.querySelectorAll("#badReasons .tag").forEach((x) => x.classList.toggle("on", x === b));
+      refreshBad();
+    };
+    $("badReasons").appendChild(b);
+  }
 }
 
-LEVELS.forEach((lv, i) => {
-  const b = document.createElement("button");
-  b.className = "level"; b.dataset.i = i;
-  b.innerHTML = `${lv.label}<small><kbd>${lv.key.toUpperCase()}</kbd></small>`;
-  b.onclick = () => choose(i);
-  $("scale").appendChild(b);
-});
-
-for (const tag of TAGS) {
-  const b = document.createElement("button");
-  b.className = "tag"; b.textContent = tag; b.dataset.tag = tag;
-  b.onclick = () => { tags.has(tag) ? tags.delete(tag) : tags.add(tag); b.classList.toggle("on"); };
-  $("tags").appendChild(b);
-}
-
-for (const k of CLIPS) {
-  const b = document.createElement("button");
-  b.className = "tag"; b.textContent = k.toUpperCase(); b.dataset.clip = k;
-  b.onclick = () => { bad.clips.has(k) ? bad.clips.delete(k) : bad.clips.add(k); b.classList.toggle("on"); refreshBad(); };
-  $("badClips").appendChild(b);
-}
-for (const [reason, label] of Object.entries(BAD_REASONS)) {
-  const b = document.createElement("button");
-  b.className = "tag"; b.textContent = label; b.dataset.reason = reason;
-  b.onclick = () => {
-    bad.reason = reason;
-    document.querySelectorAll("#badReasons .tag").forEach((x) => x.classList.toggle("on", x === b));
-    refreshBad();
-  };
-  $("badReasons").appendChild(b);
-}
+const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // --- loading a triplet --------------------------------------------------------
 
@@ -255,11 +269,11 @@ async function load() {
         lastChoice: null, switches: 0, seeks: 0, heardMs: { x: 0, a: 0, b: 0 }, noteMs: 0, noteAt: null,
         dictationMs: 0, dictations: 0 };
   showMic(null);
-  $("mode").textContent = STEM_NAMES[cur.play] || cur.play;
-  $("question").textContent = cur.play === "mix"
+  $("mode").textContent = cur.play === CFG.mix ? "Full mix" : PLAY_LABELS[cur.play] ?? `${capitalize(cur.play)} only`;
+  $("question").textContent = cur.play === CFG.mix
     ? "Listen to X, then A and B. Which one sounds more similar to X overall?"
     : `Only the ${cur.play} stem is playing. Which ${cur.play} part sounds more like X's?`;
-  $("tags").hidden = cur.play !== "mix";
+  $("tags").hidden = cur.play !== CFG.mix;
   $("note").value = "";
   $("badpanel").hidden = true; $("error").hidden = true;
   document.querySelectorAll(".tag").forEach((b) => b.classList.remove("on"));
@@ -310,15 +324,14 @@ function frame() {
   if (t && active && !audio[active].paused && !document.hidden) t.heardMs[active] += dt;
   for (const k of CLIPS) {
     const a = audio[k]; if (!a) continue;
-    const el = document.querySelector(`.clip[data-k=${k}]`);
+    const el = clipEls[k];
     const f = a.duration ? a.currentTime / a.duration : 0;
-    el.querySelector(".fill").style.width = `${100 * f}%`;
-    el.querySelector(".knob").style.left = `${100 * f}%`;
-    el.querySelector(".time").textContent = `${fmt(a.currentTime)} / ${fmt(a.duration || 0)}`;
+    el.fill.style.width = `${100 * f}%`;
+    el.knob.style.left = `${100 * f}%`;
+    el.time.textContent = `${fmt(a.currentTime)} / ${fmt(a.duration || 0)}`;
   }
   requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
 
 function render() {
   document.querySelectorAll(".clip").forEach((el) => {
@@ -411,11 +424,11 @@ async function toggleDictation() {
   showMic("Recording… say what makes it closer, then press M or Stop"); refreshSubmit();
 }
 
-async function toSamples(blob) {  // any recording -> mono Float32Array at WHISPER_RATE
+async function toSamples(blob) {  // any recording -> mono Float32Array at the server's sample rate
   const ctx = new AudioContext();
   const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
   ctx.close();
-  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * WHISPER_RATE)), WHISPER_RATE);
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * CFG.sample_rate)), CFG.sample_rate);
   const src = off.createBufferSource(); src.buffer = decoded; src.connect(off.destination); src.start();
   return (await off.startRendering()).getChannelData(0);
 }
@@ -444,14 +457,14 @@ function submit() {
 
 function submitBad() {
   if ($("badSubmit").disabled) return;
-  send({ choice: "bad_clip", strength: null, tags: [], note: $("note").value,
+  send({ choice: CFG.choices.bad_clip, strength: null, tags: [], note: $("note").value,
          bad_clip: { clips: CLIPS.filter((k) => bad.clips.has(k)), reason: bad.reason } });
 }
 
 function showReveal(res) {
   const r = res.reveal || {};
   const song = (s) => s ? `<b>${esc(s.title)}</b> — ${esc(s.artist)}${s.year ? ` (${s.year})` : ""}` : "?";
-  const picked = res.choice === "bad_clip" ? "bad clip" : LEVELS.find((l) => l.choice === res.choice && l.strength === res.strength).label;
+  const picked = res.choice === CFG.choices.bad_clip ? "bad clip" : LEVELS.find((l) => l.choice === res.choice && l.strength === res.strength).label;
   $("reveal").innerHTML = `Previous: X = ${song(r.x)}<br>A = ${song(r.a)}<br>B = ${song(r.b)}<br>You picked: <b>${picked}</b>`;
   $("reveal").hidden = false;
 }
@@ -461,7 +474,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 $("submit").onclick = submit;
 $("badSubmit").onclick = submitBad;
 $("mic").onclick = toggleDictation;
-$("badToggle").onclick =() => { $("badpanel").hidden = !$("badpanel").hidden; };
+$("badToggle").onclick = () => { $("badpanel").hidden = !$("badpanel").hidden; };
 $("note").addEventListener("focus", () => { t.noteAt = now(); });
 $("note").addEventListener("blur", () => { if (t.noteAt !== null) { t.noteMs += now() - t.noteAt; t.noteAt = null; } });
 
@@ -491,7 +504,7 @@ document.addEventListener("keydown", (e) => {
   e.preventDefault();
 });
 
-load();
+init();
 </script>
 </body>
 </html>

@@ -1,35 +1,33 @@
-"""Listeners' own ABX ratings (rate_server.py -> ratings.jsonl; format in ratings.py).
+"""Listeners' own ABX ratings (the rating app, stemsim/rating -> ratings.jsonl; format in rating/ratings.py).
 
-So far one listener, the project author: a music producer's judgments on
-"which sounds more like X?", with reason tags and free-text notes ("same sort
-of bass", "similar thumpy kick"). Few, but the only judgments here that are
-per-stem, explained, and from someone who listens for sound selection rather
-than genre. Every row carries its rater, so more raters change nothing here.
+Judgments on "which sounds more like X?" with reason tags and free-text notes
+("same sort of bass", "similar thumpy kick"), so far from one music producer.
+Few, but the only judgments here that are per-stem, explained, and from someone
+who listens for sound selection rather than genre.
 
 Normalization:
   - choice a -> triplet (X, A, B); choice b -> (X, B, A). Ties and bad clips
     give no triplet.
   - facet: "overall" for full-mix triplets; the stem's name ("drums",
     "bass", ...) for isolated-stem ones.
-  - meta: rater, session, split (fit / validation), strength (1 slightly,
-    2 clearly) and who decided it, the five reason tags, the note, the design
-    and timing - kept for analysis and for fitting choices made later.
+  - meta: rater, session, split, strength and its source, tags, note, design
+    and selection rule, and timing, for analysis and later fitting choices.
 
-Tracks are what the listener actually heard (each row records it):
+Tracks are what the listener heard (each row records it):
   - pilot ratings: the pilot's Deezer previews (audio/<spotify id>.mp3),
-    seconds 10-20. Some pilot matches were a different version than the
-    catalog song (e.g. a remix) - the judgment is still valid for the audio
-    heard, so those tracks stay separate ("pilot:" ids) and are only linked to
-    the catalog song in meta, flagged when the version differs.
-  - later ratings: registry tracks, played from their audio-stage file;
-    window null = the whole preview, which the embed stage's full-audio
-    window already covers.
+    seconds 10-20. Some were a different version than the catalog song (e.g. a
+    remix); the judgment holds for the audio heard, so these stay separate
+    "pilot:" tracks, linked to the catalog song in meta and flagged when the
+    version differs.
+  - session ratings: registry tracks, from their audio-stage file; window null
+    = the whole preview, which the embed stage's full-audio window covers.
 """
 
 import csv
 import shutil
 
-from .. import config, ratings
+from .. import config
+from ..rating import ratings
 from ..schema import (
     OVERALL,
     PERCEPTUAL,
@@ -43,9 +41,8 @@ from ..schema import (
 )
 from .base import DatasetAdapter
 
-RATINGS = "ratings.jsonl"
+RATINGS = config.RATINGS_FILE.name
 PILOT_SONGS = "pilot_songs.csv"
-PILOT = "pilot"  # audio source of the pilot's own previews (stages/audio.PilotResolver)
 
 
 class ListenerAbx(DatasetAdapter):
@@ -53,13 +50,13 @@ class ListenerAbx(DatasetAdapter):
     target = PERCEPTUAL
     metric = TRIPLET_AGREEMENT
     license = "Raters' own ratings"
-    url = "research/stem_similarity/rate_server.py"
+    url = "research/stem_similarity/stemsim/rating/server.py"
 
     def fetch(self, registry, **_):
         """Snapshots the live ratings file, so normalize reads only raw_dir."""
         raw = registry.raw_dir(self.name)
-        for name in (RATINGS, PILOT_SONGS):
-            shutil.copyfile(config.ROOT / name, raw / name)
+        shutil.copyfile(config.RATINGS_FILE, raw / RATINGS)
+        shutil.copyfile(config.ROOT / PILOT_SONGS, raw / PILOT_SONGS)
 
     def normalize(self, registry):
         raw = registry.raw_dir(self.name)
@@ -69,7 +66,7 @@ class ListenerAbx(DatasetAdapter):
             if r["choice"] not in (ratings.A, ratings.B):
                 continue
             for clip in ratings.CLIPS:
-                _add_heard(heard, r[clip], r["audio"][clip], r.get("window"))
+                _add_heard(heard, r[clip], r["audio"][clip], r["window"])
             closer, farther = (r["a"], r["b"]) if r["choice"] == ratings.A else (r["b"], r["a"])
             out.judgments.append(
                 Judgment(
@@ -77,27 +74,28 @@ class ListenerAbx(DatasetAdapter):
                     r["x"],
                     closer,
                     farther,
-                    facet=OVERALL if r["play"] == "mix" else r["play"],
+                    facet=OVERALL if r["play"] == ratings.MIX else r["play"],
                     meta={
                         "rater_id": r["rater_id"],
                         "session": r["session"],
                         "split": r["split"],
                         "design": r["design"],
-                        "strength": r.get("strength"),
-                        "strength_source": r.get("strength_source"),
-                        "reasons": r.get("tags", []),
-                        "note": r.get("note", ""),
+                        "rule": r["selection"]["rule"],  # for pilot rows, the pilot queue's design
+                        "strength": r["strength"],
+                        "strength_source": r["strength_source"],
+                        "reasons": r["tags"],
+                        "note": r["note"],
                         "rating_id": r["id"],
-                        "rated_at": r.get("rated_at"),
-                        "listen_ms": (r.get("timing") or {}).get("total_ms"),
+                        "rated_at": r["rated_at"],
+                        "listen_ms": r["timing"].get("total_ms"),
                     },
                 )
             )
 
-        pilot_songs = _pilot_songs(raw) if any(source == PILOT for source, _, _ in heard.values()) else {}
+        pilot_songs = _pilot_songs(raw) if any(source == config.PILOT for source, _, _ in heard.values()) else {}
         for track_id, (source, ref, window) in sorted(heard.items()):
             start, end = window or (None, None)
-            if source == PILOT:
+            if source == config.PILOT:
                 out.tracks.append(_pilot_track(track_id, ref, pilot_songs))
                 out.members.append(Membership(track_id, track_id.split(":", 1)[1], start, end))
             else:
@@ -128,7 +126,7 @@ def _pilot_track(track_id, ref, songs):
     song = songs[track_id.split(":", 1)[1]]
     return Track(
         track_id,
-        PILOT,
+        config.PILOT,
         audio_ref=ref,
         title=song["track_name"],
         artist=song["track_artist"],

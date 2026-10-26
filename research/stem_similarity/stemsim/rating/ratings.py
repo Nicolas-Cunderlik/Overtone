@@ -1,43 +1,38 @@
 """The ABX rating format: what one answer records, for any rater and any catalog size.
 
-ratings.jsonl is append-only: rate_server.py adds one row per answer, all in
-the format `check` describes. One row = one triplet (X, A, B), the rater, the
+ratings.jsonl is append-only: the rating server (server.py) adds one row per answer, in the
+format `check` describes. One row = one triplet (X, A, B), the rater, the
 session, the split, exactly what audio was heard, and the answer.
 
 Answer: choice a / b / tie, plus strength 1 ("slightly") or 2 ("clearly") for
-a or b - a five-level scale. Strength is stored raw. How (or whether) it enters
-fitting is an experiment decision, not a format one. `strength_source` says
-who decided it: "rater", or "rater_confirmed" for a value inferred from the
-rater's note and then checked by them.
+a or b: a five-level scale. Strength is stored raw; how it enters fitting is an
+experiment decision. `strength_source` says who decided it: "rater", or
+"rater_confirmed" for a value inferred from the note and checked by the rater.
 
 Bad clip: choice "bad_clip" names the unusable clip(s) and why. It records no
 judgment, and session building skips flagged tracks from then on.
 
-Tags: five, four of them one-to-one with the Demucs stems the model weighs
-(instruments = the "other" stem), plus one for whole-mix reasons. Finer reasons
-(groove, era) are left to the free-text note and LLM enrichment (SSM-7).
+Tags: one per Demucs stem the model weighs (instruments = the "other" stem),
+plus one for whole-mix reasons. Finer reasons (groove, era) go in the note,
+for LLM enrichment (SSM-7).
 
-Splits, decided per song so they survive catalog growth and rater count:
-  A song is a validation song when a salted hash of its track id lands in the
-  first VALIDATION_PERCENT of 100 buckets, so every new song gets a permanent
-  side without a list to maintain. A triplet is validation when all three songs
-  are, fit when none is, and is never generated otherwise. The split is also
-  written on each row when its session is built, because `song:` ids follow the
-  dedup rules, and a rule change could move a song.
-  Pilot songs are always validation: the pilot ratings are the held-out set.
+Splits are per song, so they survive catalog growth and new raters: a song is
+validation when a salted hash of its track id lands in the first
+VALIDATION_PERCENT of 100 buckets, so every new song gets a permanent side with
+no list to maintain. A triplet is validation when all three songs are, fit when
+none is, and is never generated otherwise. Each row also records its split,
+because `song:` ids follow the dedup rules and a rule change could move a song.
+Pilot songs are always validation: the pilot ratings are the held-out set.
 
-The pilot ratings (session "pilot", 21 rows from the first app) were converted
-to this format on 2026-10-25. Their seven tags were mapped to the five
-(drums/percussion -> drums, instruments/melody -> instruments, atmosphere/space
-and era/production -> production/atmosphere, groove/tempo -> none; originals
-kept in `tags_v1`). Their strengths and the one bad clip (rating 5, a
-dialogue-only clip answered "can't tell") were inferred from the notes by an
-LLM and confirmed by the rater (`inferred` keeps the evidence). Four pilot
-ratings have no note, so no strength - the only rows allowed to lack one.
+Pilot rows (design and session "pilot", from the first app's fixed queue) have
+the same fields: `selection.rule` is that queue's own design, and the audio is
+the pilot preview's seconds 10-20.
 """
 
 import hashlib
 import json
+
+from .. import config
 
 A, B, TIE, BAD_CLIP = "a", "b", "tie", "bad_clip"
 CHOICES = (A, B, TIE, BAD_CLIP)
@@ -50,20 +45,21 @@ BAD_CLIP_REASONS = ("silence", "dialogue", "wrong_version", "other")
 TAGS = ("drums", "bass", "vocals", "instruments", "production/atmosphere")
 TAG_STEM = {"drums": "drums", "bass": "bass", "vocals": "vocals", "instruments": "other"}
 
-# Triplet designs (see the session builder)
-CONTESTED = "contested"  # the models split most evenly on it - informative for fitting
-NEIGHBOURHOOD = "neighbourhood"  # A and B from X's near neighbours, picked blind to the models
-SHARED = "shared"  # also judged elsewhere (a public dataset, other raters) - agreement
-REPEAT = "repeat"  # an earlier triplet with A/B swapped - self-consistency
-DESIGNS = (CONTESTED, NEIGHBOURHOOD, SHARED, REPEAT)
-PILOT_DESIGNS = ("stem_disagree", "near_far", "random", "stem_only")  # the pilot queue's (triplets.py)
+# Triplet designs (sessions.py builds them)
+CONTESTED = "contested"  # the models split most evenly on it: informative for fitting
+NEIGHBOURHOOD = "neighbourhood"  # a random pair from X's near neighbours
+SHARED = "shared"  # also judged elsewhere (a public dataset): you vs the crowd
+REPEAT = "repeat"  # an earlier triplet with A/B swapped: self-consistency
+PILOT = config.PILOT  # the first app's fixed queue
+DESIGNS = (CONTESTED, NEIGHBOURHOOD, SHARED, REPEAT, PILOT)
 
 FIT, VALIDATION = "fit", "validation"
 SPLITS = (FIT, VALIDATION)
 VALIDATION_PERCENT = 20
-_SPLIT_SALT = "overtone-split-v1:"  # independent of the sha1 used for file paths
+_SPLIT_SALT = "overtone-split-v1:"  # so the split is independent of the sha1 file paths
 
-PLAYS = ("mix", "drums", "bass", "vocals", "other")
+MIX = "mix"  # play value: the full mix rather than one stem
+PLAYS = (MIX, "drums", "bass", "vocals", "other")
 VERSION = 2
 
 
@@ -84,13 +80,16 @@ def triplet_split(track_ids, always_validation=frozenset()):
 def check(row):
     """Problems with a rating row, as a list of messages (empty = valid)."""
     problems = []
+    missing, unknown = set(FIELDS) - set(row), set(row) - set(FIELDS)
+    if missing or unknown:
+        problems.append(f"fields must be exactly FIELDS (missing {sorted(missing)}, unknown {sorted(unknown)})")
     for key in ("id", "rater_id", "session", "x", "a", "b"):
         if not isinstance(row.get(key), str) or not row[key]:
             problems.append(f"{key} must be a non-empty string")
     if row.get("v") != VERSION:
         problems.append(f"v must be {VERSION}")
     design = row.get("design")
-    if design not in DESIGNS + PILOT_DESIGNS:
+    if design not in DESIGNS:
         problems.append(f"design must be one of {DESIGNS}")
     if row.get("split") not in SPLITS:
         problems.append(f"split must be one of {SPLITS}")
@@ -109,17 +108,15 @@ def check(row):
     if choice not in CHOICES:
         problems.append(f"choice must be one of {CHOICES}")
     elif choice in (A, B):
-        if strength is None and design not in PILOT_DESIGNS:
+        if strength not in STRENGTHS:
             problems.append(f"choosing a or b needs strength in {STRENGTHS}")
-        elif strength is not None and strength not in STRENGTHS:
-            problems.append(f"strength must be one of {STRENGTHS}")
     elif strength is not None:
         problems.append(f"{choice} takes no strength")
-    if (strength is None) != (row.get("strength_source") is None) or row.get("strength_source") not in (
-        None,
-        *STRENGTH_SOURCES,
-    ):
-        problems.append(f"strength_source must be one of {STRENGTH_SOURCES} exactly when there is a strength")
+    source = row.get("strength_source")
+    if source is not None and source not in STRENGTH_SOURCES:
+        problems.append(f"strength_source must be one of {STRENGTH_SOURCES}")
+    elif (strength is None) != (source is None):
+        problems.append("strength_source is set exactly when there is a strength")
 
     bad = row.get("bad_clip")
     if choice == BAD_CLIP:
@@ -130,16 +127,40 @@ def check(row):
     elif bad is not None:
         problems.append("bad_clip is only set when choice is bad_clip")
 
-    unknown = set(row.get("tags", [])) - set(TAGS)
-    if unknown:
-        problems.append(f"unknown tags {sorted(unknown)}")
+    unknown_tags = set(row.get("tags") or []) - set(TAGS)
+    if unknown_tags:
+        problems.append(f"unknown tags {sorted(unknown_tags)}")
     return problems
 
 
-# What a session row (one prepared triplet) passes on to the rating made from it.
-# Session rows also carry `info` (titles, revealed after answering), which isn't kept.
-SESSION_FIELDS = ("id", "session", "design", "split", "x", "a", "b", "play", "audio", "stems", "window")
-OPTIONAL_SESSION_FIELDS = ("repeat_of", "selection")
+# A session (data/sessions/<rater>-<nnn>.jsonl, built by sessions.py, served by
+# server.py) is one row per prepared triplet:
+#   id, session, design, split, x, a, b   as in a rating row
+#   play       MIX, or the stem played in isolation
+#   audio      {clip: {source, ref}}: each clip's full-mix file, ref relative to the data dir
+#   stems      {clip: ref} of the played stem's file when play is a stem, else null
+#   window     null = the whole preview
+#   info       {clip: {title, artist, year}}: hidden while rating, revealed after the answer; not kept
+#   repeat_of  the earlier triplet a repeat swaps, else null
+#   selection  why the builder chose this triplet ({rule, ...}; rule is the design, or the pilot queue's)
+# A rating copies these fields from its session row:
+SESSION_FIELDS = (
+    "id",
+    "session",
+    "design",
+    "split",
+    "x",
+    "a",
+    "b",
+    "play",
+    "audio",
+    "stems",
+    "window",
+    "repeat_of",
+    "selection",
+)
+ANSWER_FIELDS = ("choice", "strength", "strength_source", "tags", "note", "bad_clip", "timing", "rated_at")
+FIELDS = ("v", "rater_id", *SESSION_FIELDS, *ANSWER_FIELDS)  # every rating row has exactly these, in this order
 
 
 def from_session(session_row, answer, rater_id, rated_at):
@@ -149,7 +170,6 @@ def from_session(session_row, answer, rater_id, rated_at):
         "v": VERSION,
         "rater_id": rater_id,
         **{key: session_row.get(key) for key in SESSION_FIELDS},
-        **{key: session_row[key] for key in OPTIONAL_SESSION_FIELDS if session_row.get(key) is not None},
         "choice": answer.get("choice"),
         "strength": strength,
         "strength_source": "rater" if strength is not None else None,
