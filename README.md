@@ -1,5 +1,7 @@
 # Overtone
 
+[Jira board](https://nicolascunderlik.atlassian.net/jira/software/c/projects/SSM/list)
+
 A desktop panel for music producers that sits beside the Spotify app and follows whatever is playing: chord progressions in the style of the current song, exported as MIDI, and similar songs found by how they actually sound.
 
 ## Why
