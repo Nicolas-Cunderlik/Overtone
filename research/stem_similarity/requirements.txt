@@ -16,3 +16,4 @@ joblib==1.6.0
 platformdirs==4.13.5  # overtone.config
 pytest==9.1.1
 mlflow==3.17.2  # experiment tracking (stemsim/tracking.py)
+faster-whisper==1.2.1  # rating-app dictation (stemsim/rating/dictation.py); runs on CPU, model downloads on first use

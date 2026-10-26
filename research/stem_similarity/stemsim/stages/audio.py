@@ -30,7 +30,7 @@ from ..registry import DONE, FAILED, UNAVAILABLE
 
 logger = logging.getLogger(__name__)
 
-STAGE = "audio"
+STAGE = config.AUDIO_STAGE
 
 
 class DeezerResolver:
@@ -129,7 +129,7 @@ class PilotResolver:
     """The pilot's own Deezer previews (research/stem_similarity/audio/), kept
     as-is because they're exactly what the listener rated."""
 
-    source = "pilot"
+    source = config.PILOT
 
     def __init__(self, registry):
         self.registry = registry

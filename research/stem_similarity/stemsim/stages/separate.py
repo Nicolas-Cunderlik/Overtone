@@ -42,12 +42,13 @@ import torchaudio.functional as AF
 from demucs.apply import apply_model
 from demucs.pretrained import get_model
 
+from .. import config
 from ..registry import DONE, FAILED
 
 logger = logging.getLogger(__name__)
 
-STAGE = "separate"
-REQUIRES = "audio"
+STAGE = config.SEPARATE_STAGE
+REQUIRES = config.AUDIO_STAGE
 STEMS = ("drums", "bass", "vocals", "other")
 STEM_SR = 24_000
 MIN_SECONDS = 1.0

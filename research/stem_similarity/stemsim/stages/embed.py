@@ -32,15 +32,16 @@ import soundfile as sf
 import torch
 import torchaudio.functional as AF
 
+from .. import config
 from ..registry import DONE, FAILED
 from .separate import STAGE as SEPARATE_STAGE
 from .separate import STEM_EXT, STEM_SR, STEMS, get_separator, load_audio, track_hash
 
 logger = logging.getLogger(__name__)
 
-MODEL_KEY = "muq-mulan-large"
+MODEL_KEY = config.EMBED_MODEL
 HF_MODEL = "OpenMuQ/MuQ-MuLan-large"
-STAGE = f"embed:{MODEL_KEY}"
+STAGE = config.EMBED_STAGE
 CHANNELS = ("mix", *STEMS)
 MIN_WINDOW_S = 1.0
 
@@ -82,7 +83,7 @@ def get_embedder():
 
 def run(registry, dataset=None, limit=None):
     stems_on_disk = dataset is not None and registry.keeps_stems(dataset)
-    requires = SEPARATE_STAGE if stems_on_disk else "audio"
+    requires = SEPARATE_STAGE if stems_on_disk else config.AUDIO_STAGE
     pending = registry.pending(STAGE, dataset=dataset, limit=limit, requires=requires)
     if not pending:
         return {}
@@ -103,7 +104,7 @@ def load_channels(registry, track_id, separator=None):
     """(5, samples) mono at STEM_SR: the mix (from the audio stage) + the 4
     stems - read from disk when the separate stage kept them, else separated
     here with `separator`."""
-    mix, sr = load_audio(registry.output(track_id, "audio")[0])
+    mix, sr = load_audio(registry.output(track_id, config.AUDIO_STAGE)[0])
     channels = [AF.resample(torch.from_numpy(mix).mean(0), sr, STEM_SR)]
     on_disk = registry.output(track_id, SEPARATE_STAGE)
     if on_disk is not None:

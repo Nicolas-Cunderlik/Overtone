@@ -9,6 +9,8 @@
   python -m stemsim separate [--dataset dim_sim] [--limit 100]   Demucs stems (GPU)
   python -m stemsim embed [--dataset dim_sim] [--limit 100]      MuQ-MuLan vectors (GPU)
   python -m stemsim status                           per-dataset progress
+  python -m stemsim session [--rater nicolas]        build the next rating session (rating/sessions.py)
+  python -m stemsim rate [--session NAME]            serve a session to rate (rating/server.py)
 
 Every command is safe to re-run and to run alongside the others; a second
 copy of the same stage refuses to start. GPU stages without --dataset work
@@ -20,6 +22,7 @@ import contextlib
 import logging
 import sys
 
+from . import config
 from .datasets import ADAPTERS
 from .registry import Registry
 from .stages import audio, ingest
@@ -71,6 +74,16 @@ def main(argv=None):
         p.add_argument("--dataset", choices=sorted(ADAPTERS))
         p.add_argument("--limit", type=int)
     commands.add_parser("status", help="per-dataset progress")
+    p = commands.add_parser("session", help="build the next ABX rating session")
+    p.add_argument("--rater", default=config.DEFAULT_RATER)
+    p.add_argument("--seed", type=int, help="for a reproducible session")
+    p.add_argument("--dry-run", action="store_true", help="print the session without writing it")
+    commands.add_parser("rate", help="serve a session in the ABX rating app (rate --help for its options)")
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["rate"]:  # the server parses its own options and needs no registry
+        from .rating import server
+
+        return server.main(argv[1:])
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -107,8 +120,17 @@ def main(argv=None):
             from .stages import embed as stage
         with registry.exclusive(stage.STAGE.replace(":", "-")):
             print(_run_by_priority(registry, stage.run, args.dataset, args.limit))
+    elif args.command == "session":
+        from .rating import sessions  # loads scipy, mlflow and the app model
+
+        name, rows = sessions.build(registry, args.rater, seed=args.seed)
+        print(sessions.summary(rows))
+        if args.dry_run:
+            print(f"(dry run - {name} not written)")
+        else:
+            print(f"Wrote {sessions.write(rows, name)} - rate it with scripts/launch_rating_server.py")
     elif args.command == "status":
-        stages = ["audio", "separate", "embed:muq-mulan-large"]
+        stages = [config.AUDIO_STAGE, config.SEPARATE_STAGE, config.EMBED_STAGE]
         print(
             f"{'dataset':16s} {'target':11s} {'tracks':>7s} {'judgm.':>7s} "
             + " ".join(f"{s[:12]:>18s}" for s in stages)
