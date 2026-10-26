@@ -34,6 +34,7 @@ The owner steers this project and wants to understand it deeply, not to have it 
 | Research pipeline overview | `python scripts/pipeline_status.py` |
 | Restart pipeline stages (background, no duplicates) | `python scripts/resume_pipeline.py [--gpu \| --audio \| --dry-run]` |
 | MLflow UI / ABX rating app | `python scripts/launch_mlflow.py` / `python scripts/launch_rating_server.py` |
+| Build the next ABX rating session | `.venv\Scripts\python -m stemsim session` (from `research/stem_similarity`) |
 
 `scripts/` are standard-library launchers: run them with any Python, they find the right venv themselves.
 

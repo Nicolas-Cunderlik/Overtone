@@ -8,17 +8,17 @@
   :root {
     --bg: #f6f5f2; --panel: #ffffff; --text: #1d1d1f; --muted: #6b6b70;
     --line: #e2e0db; --accent: #2f6f4f; --accent-soft: #e3efe8; --x: #5b4bb7; --x-soft: #ebe8f8;
-    --warn: #a35a00;
+    --warn: #a35a00; --warn-soft: #fbeedd;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #151517; --panel: #1f1f22; --text: #ececee; --muted: #9a9aa2;
       --line: #333338; --accent: #6cc496; --accent-soft: #1f3a2c; --x: #a99bf5; --x-soft: #2c2748;
-      --warn: #f0a24a; }
+      --warn: #f0a24a; --warn-soft: #3a2a14; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  main { max-width: 780px; margin: 0 auto; padding: 24px 16px 48px; }
   header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   h1 { font-size: 18px; margin: 0; }
   .meta { color: var(--muted); font-size: 13px; }
@@ -27,40 +27,68 @@
   .mode { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px;
     background: var(--accent-soft); color: var(--accent); font-weight: 600; margin-bottom: 14px; }
   .question { font-size: 17px; margin: 0 0 16px; }
+
   .players { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-  .clip { border: 2px solid var(--line); background: var(--panel); border-radius: 12px; padding: 16px 10px;
-    cursor: pointer; text-align: center; color: var(--text); font: inherit; transition: border-color .15s; }
-  .clip .label { font-size: 26px; font-weight: 700; }
+  .clip { border: 2px solid var(--line); background: var(--panel); border-radius: 12px; padding: 14px 10px 12px;
+    cursor: pointer; text-align: center; color: var(--text); font: inherit; transition: border-color .15s;
+    user-select: none; }
+  .clip .label { font-size: 26px; font-weight: 700; line-height: 1.1; }
   .clip .hint { color: var(--muted); font-size: 12px; }
   .clip.x .label { color: var(--x); }
   .clip.playing { border-color: var(--accent); background: var(--accent-soft); }
   .clip.x.playing { border-color: var(--x); background: var(--x-soft); }
   .clip.unheard .hint::after { content: " · not heard yet"; color: var(--warn); }
-  .bar { height: 3px; background: var(--line); border-radius: 2px; margin-top: 10px; overflow: hidden; }
-  .bar > div { height: 100%; background: var(--accent); width: 0; }
-  .choices { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; margin: 20px 0 14px; }
-  .choice { padding: 14px 10px; border-radius: 10px; border: 2px solid var(--line); background: var(--panel);
-    color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
-  .choice.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
-  .choice small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+  .seek { position: relative; height: 18px; margin-top: 10px; cursor: pointer; touch-action: none; }
+  .seek .track { position: absolute; left: 0; right: 0; top: 7px; height: 4px; background: var(--line); border-radius: 2px; }
+  .seek .fill { position: absolute; left: 0; top: 7px; height: 4px; background: var(--accent); border-radius: 2px; width: 0; }
+  .clip.x .seek .fill { background: var(--x); }
+  .seek .knob { position: absolute; top: 3px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%;
+    background: var(--panel); border: 2px solid var(--accent); left: 0; }
+  .clip.x .seek .knob { border-color: var(--x); }
+  .time { font: 12px ui-monospace, monospace; color: var(--muted); margin-top: 2px; }
+
+  .scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 20px 0 14px; }
+  .level { padding: 12px 6px; border-radius: 10px; border: 2px solid var(--line); background: var(--panel);
+    color: var(--text); font: inherit; font-weight: 600; cursor: pointer; font-size: 14px; }
+  .level.selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .level small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 2px; }
   .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .tags .lbl { color: var(--muted); font-size: 13px; width: 100%; }
   .tag { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 999px;
     padding: 4px 11px; font: inherit; font-size: 13px; cursor: pointer; }
   .tag.on { background: var(--accent); border-color: var(--accent); color: var(--panel); }
-  textarea { width: 100%; min-height: 54px; resize: vertical; border-radius: 10px; border: 1px solid var(--line);
+  textarea { width: 100%; min-height: 64px; resize: vertical; border-radius: 10px; border: 1px solid var(--line);
     background: var(--panel); color: var(--text); padding: 8px 10px; font: inherit; font-size: 14px; }
-  .submit { margin-top: 12px; width: 100%; padding: 13px; border: 0; border-radius: 10px; font: inherit;
+  .notebox { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: stretch; }
+  .mic { min-width: 104px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel);
+    color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+  .mic.recording { background: var(--warn); border-color: var(--warn); color: var(--panel); }
+  .mic:disabled { opacity: .4; cursor: not-allowed; }
+  .micstatus { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin-top: 12px; }
+  .submit { padding: 13px; border: 0; border-radius: 10px; font: inherit;
     font-weight: 700; background: var(--accent); color: var(--panel); cursor: pointer; }
   .submit:disabled { opacity: .4; cursor: not-allowed; }
-  .keys { color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .secondary { padding: 13px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel);
+    color: var(--warn); font: inherit; font-weight: 600; cursor: pointer; }
+  .badpanel { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--warn); border-radius: 10px;
+    background: var(--warn-soft); }
+  .badpanel .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .badpanel .lbl { font-size: 13px; color: var(--muted); min-width: 70px; }
+  .badpanel .tag.on { background: var(--warn); border-color: var(--warn); }
+  .error { color: var(--warn); font-size: 13px; margin-top: 8px; }
+  .keys { color: var(--muted); font-size: 12px; margin-top: 10px; line-height: 1.9; }
   kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px;
     font: 11px ui-monospace, monospace; background: var(--panel); }
   .reveal { margin-top: 26px; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 10px;
     font-size: 13px; color: var(--muted); }
   .reveal b { color: var(--text); font-weight: 600; }
   .done { text-align: center; padding: 60px 0; }
-  @media (max-width: 520px) { .clip .label { font-size: 20px; } .choices { grid-template-columns: 1fr; } }
+  @media (max-width: 560px) {
+    .clip .label { font-size: 20px; }
+    .scale { grid-template-columns: 1fr 1fr; }
+    .scale .level[data-i="2"] { grid-column: span 2; }
+  }
 </style>
 </head>
 <body>
@@ -74,131 +102,393 @@
   <section id="task" hidden>
     <span class="mode" id="mode"></span>
     <p class="question" id="question"></p>
-    <div class="players">
-      <button class="clip x" data-k="x"><div class="label">X</div><div class="hint">reference · <kbd>1</kbd></div><div class="bar"><div></div></div></button>
-      <button class="clip" data-k="a"><div class="label">A</div><div class="hint"><kbd>2</kbd></div><div class="bar"><div></div></div></button>
-      <button class="clip" data-k="b"><div class="label">B</div><div class="hint"><kbd>3</kbd></div><div class="bar"><div></div></div></button>
-    </div>
+    <div class="players" id="players"></div>
 
-    <div class="choices">
-      <button class="choice" data-c="a">A is closer<small><kbd>F</kbd> / <kbd>←</kbd></small></button>
-      <button class="choice" data-c="tie">Can't tell<small><kbd>↓</kbd></small></button>
-      <button class="choice" data-c="b">B is closer<small><kbd>J</kbd> / <kbd>→</kbd></small></button>
-    </div>
+    <div class="scale" id="scale"></div>
 
     <div class="tags" id="tags">
-      <span class="lbl">Because of… (optional, pick any)</span>
+      <span class="lbl">Mostly because of… (optional, pick any)</span>
     </div>
-    <textarea id="note" placeholder="Optional note: what made it closer? e.g. 'same airy pads', 'that clap'"></textarea>
-    <button class="submit" id="submit" disabled>Submit <kbd>Enter</kbd></button>
-    <div class="keys"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> switch clips at the same position · <kbd>Space</kbd> pause/resume · listen to all three before submitting</div>
+    <div class="notebox">
+      <textarea id="note" placeholder="Optional note: what made it closer? e.g. 'same airy pads', 'that clap' - or press M and say it"></textarea>
+      <button class="mic" id="mic" title="Dictate into the note (M)"></button>
+    </div>
+    <div class="micstatus" id="micStatus" hidden></div>
+    <div class="actions">
+      <button class="submit" id="submit" disabled>Submit <kbd>Enter</kbd></button>
+      <button class="secondary" id="badToggle" title="Silence, dialogue, wrong version… records no answer">Bad clip…</button>
+    </div>
+    <div class="badpanel" id="badpanel" hidden>
+      <div class="row"><span class="lbl">Which clip</span><span id="badClips"></span></div>
+      <div class="row"><span class="lbl">Why</span><span id="badReasons"></span></div>
+      <button class="submit" id="badSubmit" disabled>Flag and skip</button>
+    </div>
+    <div class="error" id="error" hidden></div>
+    <div class="keys">
+      <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> play X / A / B at the same position ·
+      <kbd>Space</kbd> pause · <kbd>←</kbd><kbd>→</kbd> back / forward 5 s · drag a bar to seek<br>
+      <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd><kbd>T</kbd> answer · <kbd>M</kbd> dictate / stop ·
+      <kbd>Enter</kbd> submit
+      (<kbd>Shift</kbd>+<kbd>Enter</kbd> new line in the note) · <kbd>Esc</kbd> leave the note ·
+      listen to all three before submitting
+    </div>
   </section>
 
   <section class="done" id="done" hidden>
-    <h2>All triplets rated 🎉</h2>
-    <p class="meta">Ratings are saved in ratings.jsonl.</p>
+    <h2>Session complete</h2>
+    <p class="meta" id="doneMeta"></p>
   </section>
 
   <div class="reveal" id="reveal" hidden></div>
 </main>
 
 <script>
-const TAGS = ["drums/percussion", "bass", "vocals", "instruments/melody", "atmosphere/space", "groove/tempo", "era/production"];
+const TAGS = ["drums", "bass", "vocals", "instruments", "production/atmosphere"];
+const LEVELS = [
+  { choice: "a", strength: 2, label: "A clearly", key: "q" },
+  { choice: "a", strength: 1, label: "A slightly", key: "w" },
+  { choice: "tie", strength: null, label: "Can't tell", key: "e" },
+  { choice: "b", strength: 1, label: "B slightly", key: "r" },
+  { choice: "b", strength: 2, label: "B clearly", key: "t" },
+];
+const CLIPS = ["x", "a", "b"];
+const BAD_REASONS = { silence: "Silence", dialogue: "Dialogue / no music", wrong_version: "Wrong version", other: "Other" };
 const STEM_NAMES = { mix: "Full mix", drums: "Drums only", bass: "Bass only", vocals: "Vocals only", other: "Other instruments only" };
+const SEEK_STEP_S = 5;
+const WHISPER_RATE = 16000;  // dictation.SAMPLE_RATE
+const MIC_IDLE = "Dictate <kbd>M</kbd>", MIC_REC = "■ Stop <kbd>M</kbd>";
 const $ = (id) => document.getElementById(id);
-let cur = null, audio = {}, active = null, heard = new Set(), choice = null, tags = new Set();
-let startedAt = 0, switches = 0;
+const now = () => performance.now();
 
-for (const t of TAGS) {
+let cur = null, audio = {}, active = null, heard = new Set(), level = null, tags = new Set();
+let bad = { clips: new Set(), reason: null };
+const cache = new Map();  // url -> Audio, so the next triplet's clips load while this one is rated
+let t = null;             // timing for the current triplet
+let dictationStatus = "off", rec = null, transcribing = false;
+
+// --- building the page -------------------------------------------------------
+
+for (const k of CLIPS) {
+  const el = document.createElement("div");
+  el.className = `clip ${k === "x" ? "x" : ""}`;
+  el.dataset.k = k;
+  el.innerHTML = `<div class="label">${k.toUpperCase()}</div>
+    <div class="hint">${k === "x" ? "reference · " : ""}<kbd>${CLIPS.indexOf(k) + 1}</kbd></div>
+    <div class="seek"><div class="track"></div><div class="fill"></div><div class="knob"></div></div>
+    <div class="time">0:00 / 0:00</div>`;
+  el.onclick = () => play(k);
+  const bar = el.querySelector(".seek");
+  bar.addEventListener("pointerdown", (e) => {
+    e.stopPropagation(); if (!t) return; bar.setPointerCapture(e.pointerId); bar.dragging = true; t.seeks++; seekTo(k, frac(bar, e));
+  });
+  bar.addEventListener("pointermove", (e) => { if (bar.dragging) seekTo(k, frac(bar, e)); });
+  bar.addEventListener("pointerup", () => { bar.dragging = false; });
+  bar.addEventListener("click", (e) => e.stopPropagation());
+  $("players").appendChild(el);
+}
+
+LEVELS.forEach((lv, i) => {
   const b = document.createElement("button");
-  b.className = "tag"; b.textContent = t;
-  b.onclick = () => { tags.has(t) ? tags.delete(t) : tags.add(t); b.classList.toggle("on"); };
+  b.className = "level"; b.dataset.i = i;
+  b.innerHTML = `${lv.label}<small><kbd>${lv.key.toUpperCase()}</kbd></small>`;
+  b.onclick = () => choose(i);
+  $("scale").appendChild(b);
+});
+
+for (const tag of TAGS) {
+  const b = document.createElement("button");
+  b.className = "tag"; b.textContent = tag; b.dataset.tag = tag;
+  b.onclick = () => { tags.has(tag) ? tags.delete(tag) : tags.add(tag); b.classList.toggle("on"); };
   $("tags").appendChild(b);
 }
 
-async function load() {
-  const [next, stats] = await Promise.all([fetch("/api/next").then(r => r.json()), fetch("/api/stats").then(r => r.json())]);
-  const cons = stats.repeats_checked ? ` · self-consistency ${stats.consistent}/${stats.repeats_checked}` : "";
-  $("meta").textContent = `${next.rated} / ${next.total} rated${cons}`;
-  $("progress").style.width = `${100 * next.rated / next.total}%`;
-  if (next.done) { $("task").hidden = true; $("done").hidden = false; return; }
-  cur = next; heard = new Set(); choice = null; tags = new Set(); switches = 0; startedAt = performance.now();
-  Object.values(audio).forEach(a => { a.pause(); a.src = ""; });
-  audio = {};
-  for (const k of ["x", "a", "b"]) {
-    const a = new Audio(next.clips[k]); a.loop = true; a.preload = "auto";
-    a.ontimeupdate = () => { document.querySelector(`.clip[data-k=${k}] .bar > div`).style.width = `${100 * a.currentTime / (a.duration || 10)}%`; };
-    audio[k] = a;
-  }
-  active = null;
-  $("mode").textContent = STEM_NAMES[next.play] || next.play;
-  $("question").textContent = next.play === "mix"
-    ? "Listen to X, then A and B. Which one sounds more similar to X overall?"
-    : `Only the ${next.play} stem is playing. Which ${next.play} part sounds more like X's?`;
-  $("tags").hidden = next.play !== "mix";
-  $("note").value = "";
-  document.querySelectorAll(".tag").forEach(b => b.classList.remove("on"));
-  document.querySelectorAll(".choice").forEach(b => b.classList.remove("selected"));
-  document.querySelectorAll(".clip").forEach(b => { b.classList.remove("playing"); b.classList.add("unheard"); });
-  document.querySelectorAll(".bar > div").forEach(d => d.style.width = "0");
-  $("task").hidden = false;
-  refreshSubmit();
+for (const k of CLIPS) {
+  const b = document.createElement("button");
+  b.className = "tag"; b.textContent = k.toUpperCase(); b.dataset.clip = k;
+  b.onclick = () => { bad.clips.has(k) ? bad.clips.delete(k) : bad.clips.add(k); b.classList.toggle("on"); refreshBad(); };
+  $("badClips").appendChild(b);
+}
+for (const [reason, label] of Object.entries(BAD_REASONS)) {
+  const b = document.createElement("button");
+  b.className = "tag"; b.textContent = label; b.dataset.reason = reason;
+  b.onclick = () => {
+    bad.reason = reason;
+    document.querySelectorAll("#badReasons .tag").forEach((x) => x.classList.toggle("on", x === b));
+    refreshBad();
+  };
+  $("badReasons").appendChild(b);
 }
 
-function play(k) {
-  const pos = active ? audio[active].currentTime : 0;
-  if (active && active !== k) { audio[active].pause(); switches++; }
-  if (active === k && !audio[k].paused) { audio[k].pause(); render(); return; }
+// --- loading a triplet --------------------------------------------------------
+
+function getAudio(url) {
+  if (!cache.has(url)) {
+    const a = new Audio(); a.preload = "auto"; a.loop = true; a.src = url;
+    cache.set(url, a);
+  }
+  return cache.get(url);
+}
+
+async function load() {
+  const state = await fetch("/api/state").then((r) => r.json());
+  const c = state.consistency.checked ? ` · self-consistency ${state.consistency.consistent}/${state.consistency.checked}` : "";
+  const med = state.median_s ? ` · median ${state.median_s} s` : "";
+  $("meta").textContent = `${state.session} · ${state.rated} / ${state.total} rated${med}${c}`;
+  $("progress").style.width = `${100 * state.rated / state.total}%`;
+  setDictationStatus(state.dictation);
+  Object.values(audio).forEach((a) => a.pause());
+  if (!state.current) {
+    $("task").hidden = true; $("done").hidden = false;
+    $("doneMeta").textContent = `${state.rated} triplets rated in ${state.session}.${med}`;
+    return;
+  }
+  cur = state.current;
+  const keep = new Set([...Object.values(cur.clips), ...Object.values(state.upcoming || {})]);
+  for (const url of [...cache.keys()]) if (!keep.has(url)) { cache.get(url).src = ""; cache.delete(url); }
+  audio = {};
+  for (const k of CLIPS) { audio[k] = getAudio(cur.clips[k]); audio[k].currentTime = 0; }
+  Object.values(state.upcoming || {}).forEach(getAudio);
+
+  active = null; heard = new Set(); level = null; tags = new Set();
+  bad = { clips: new Set(), reason: null };
+  t = { start: now(), hiddenMs: 0, hiddenAt: document.hidden ? now() : null, firstPlay: null, firstChoice: null,
+        lastChoice: null, switches: 0, seeks: 0, heardMs: { x: 0, a: 0, b: 0 }, noteMs: 0, noteAt: null,
+        dictationMs: 0, dictations: 0 };
+  showMic(null);
+  $("mode").textContent = STEM_NAMES[cur.play] || cur.play;
+  $("question").textContent = cur.play === "mix"
+    ? "Listen to X, then A and B. Which one sounds more similar to X overall?"
+    : `Only the ${cur.play} stem is playing. Which ${cur.play} part sounds more like X's?`;
+  $("tags").hidden = cur.play !== "mix";
+  $("note").value = "";
+  $("badpanel").hidden = true; $("error").hidden = true;
+  document.querySelectorAll(".tag").forEach((b) => b.classList.remove("on"));
+  document.querySelectorAll(".level").forEach((b) => b.classList.remove("selected"));
+  $("task").hidden = false;
+  render(); refreshBad();
+}
+
+// --- playback -------------------------------------------------------------------
+
+function play(k, at) {
+  const a = audio[k];
+  if (active === k && at === undefined) { a.paused ? a.play() : a.pause(); render(); return; }
+  const pos = at ?? (active ? audio[active].currentTime : 0);
+  if (active && active !== k) { audio[active].pause(); t.switches++; }
   active = k;
-  audio[k].currentTime = pos;
-  audio[k].play();
+  a.currentTime = a.duration ? Math.min(pos, a.duration - 0.05) : pos;
+  a.play().catch(() => {});
   heard.add(k);
+  if (t.firstPlay === null) t.firstPlay = elapsed();
   render();
 }
 
+function seekTo(k, f) {
+  const a = audio[k];
+  const pos = f * (a.duration || 30);
+  if (active !== k) play(k, pos); else a.currentTime = pos;
+}
+
+function nudge(seconds) {
+  const k = active || "x";
+  const a = audio[k];
+  if (active !== k) { play(k, 0); return; }
+  a.currentTime = Math.max(0, Math.min((a.duration || 30) - 0.05, a.currentTime + seconds));
+  t.seeks++;
+}
+
+function frac(bar, e) {
+  const r = bar.getBoundingClientRect();
+  return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+}
+
+const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+let lastFrame = now();
+function frame() {
+  const ts = now(), dt = ts - lastFrame; lastFrame = ts;
+  if (t && active && !audio[active].paused && !document.hidden) t.heardMs[active] += dt;
+  for (const k of CLIPS) {
+    const a = audio[k]; if (!a) continue;
+    const el = document.querySelector(`.clip[data-k=${k}]`);
+    const f = a.duration ? a.currentTime / a.duration : 0;
+    el.querySelector(".fill").style.width = `${100 * f}%`;
+    el.querySelector(".knob").style.left = `${100 * f}%`;
+    el.querySelector(".time").textContent = `${fmt(a.currentTime)} / ${fmt(a.duration || 0)}`;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
 function render() {
-  document.querySelectorAll(".clip").forEach(b => {
-    const k = b.dataset.k;
-    b.classList.toggle("playing", k === active && !audio[k].paused);
-    b.classList.toggle("unheard", !heard.has(k));
+  document.querySelectorAll(".clip").forEach((el) => {
+    const k = el.dataset.k;
+    el.classList.toggle("playing", k === active && !audio[k].paused);
+    el.classList.toggle("unheard", !heard.has(k));
   });
   refreshSubmit();
 }
 
-function choose(c) {
-  choice = c;
-  document.querySelectorAll(".choice").forEach(b => b.classList.toggle("selected", b.dataset.c === c));
+// --- answering --------------------------------------------------------------------
+
+function choose(i) {
+  level = i;
+  t.lastChoice = elapsed(); if (t.firstChoice === null) t.firstChoice = t.lastChoice;
+  document.querySelectorAll(".level").forEach((b) => b.classList.toggle("selected", Number(b.dataset.i) === i));
   refreshSubmit();
 }
 
-function refreshSubmit() { $("submit").disabled = !(choice && heard.size === 3); }
+function refreshSubmit() { $("submit").disabled = !(level !== null && heard.size === 3) || rec !== null || transcribing; }
+function refreshBad() { $("badSubmit").disabled = !(bad.clips.size && bad.reason); }
 
-async function submit() {
-  if ($("submit").disabled) return;
-  Object.values(audio).forEach(a => a.pause());
+function elapsed() {  // ms the page was visible since this triplet loaded
+  const hiddenNow = t.hiddenAt !== null ? now() - t.hiddenAt : 0;
+  return Math.round(now() - t.start - t.hiddenMs - hiddenNow);
+}
+
+function timing() {
+  if (t.noteAt !== null) { t.noteMs += now() - t.noteAt; t.noteAt = now(); }
+  const r = (v) => (v === null ? null : Math.round(v));
+  return {
+    total_ms: elapsed(), hidden_ms: r(t.hiddenMs), first_play_ms: t.firstPlay, first_choice_ms: t.firstChoice,
+    last_choice_ms: t.lastChoice, note_ms: r(t.noteMs), switches: t.switches, seeks: t.seeks,
+    heard_ms: { x: r(t.heardMs.x), a: r(t.heardMs.a), b: r(t.heardMs.b) },
+    dictation_ms: r(t.dictationMs), dictations: t.dictations,
+  };
+}
+
+// --- dictation: record, decode to 16 kHz samples here, transcribe on the server ---
+
+function setDictationStatus(status) {
+  dictationStatus = status;
+  const mic = $("mic");
+  if (!rec) mic.innerHTML = MIC_IDLE;
+  mic.disabled = status === "off" || status === "unavailable";
+  mic.title = status === "ready" ? "Dictate into the note (M)" : `Dictation ${status}`;
+}
+
+function showMic(text) { $("micStatus").textContent = text || ""; $("micStatus").hidden = !text; }
+
+async function toggleDictation() {
+  if (rec) { rec.recorder.stop(); return; }
+  if (transcribing) return;
+  if (dictationStatus !== "ready") {
+    setDictationStatus((await fetch("/api/state").then((r) => r.json())).dictation);
+    if (dictationStatus !== "ready") { showMic(`Dictation is ${dictationStatus}${dictationStatus === "loading" ? " - try again in a few seconds" : ""}`); return; }
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+  } catch (e) {
+    showMic("Microphone blocked - allow it for localhost in the browser's site settings"); return;
+  }
+  Object.values(audio).forEach((a) => a.pause()); render();
+  const recorder = new MediaRecorder(stream), chunks = [], forId = cur.id, tt = t;
+  rec = { recorder, started: now() };
+  recorder.ondataavailable = (e) => chunks.push(e.data);
+  recorder.onstop = async () => {
+    stream.getTracks().forEach((track) => track.stop());
+    tt.dictationMs += now() - rec.started; tt.dictations++;
+    rec = null; transcribing = true;
+    $("mic").classList.remove("recording"); $("mic").innerHTML = MIC_IDLE; $("mic").disabled = true;
+    showMic("Transcribing…"); refreshSubmit();
+    try {
+      const samples = await toSamples(new Blob(chunks, { type: recorder.mimeType }));
+      const res = await fetch("/api/transcribe", { method: "POST",
+        headers: { "Content-Type": "application/octet-stream" }, body: samples.buffer });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error);
+      if (cur.id === forId) appendNote(body.text);
+      showMic(body.text ? null : "Didn't catch anything - try again");
+    } catch (e) {
+      showMic(`Transcription failed: ${e.message}`);
+    } finally {
+      transcribing = false; setDictationStatus(dictationStatus); refreshSubmit();
+    }
+  };
+  recorder.start();
+  $("mic").classList.add("recording"); $("mic").innerHTML = MIC_REC;
+  showMic("Recording… say what makes it closer, then press M or Stop"); refreshSubmit();
+}
+
+async function toSamples(blob) {  // any recording -> mono Float32Array at WHISPER_RATE
+  const ctx = new AudioContext();
+  const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+  ctx.close();
+  const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * WHISPER_RATE)), WHISPER_RATE);
+  const src = off.createBufferSource(); src.buffer = decoded; src.connect(off.destination); src.start();
+  return (await off.startRendering()).getChannelData(0);
+}
+
+function appendNote(text) {
+  if (!text) return;
+  const note = $("note");
+  note.value = note.value.trim() ? `${note.value.trim()} ${text}` : text;
+}
+
+async function send(answer) {
+  Object.values(audio).forEach((a) => a.pause());
   const res = await fetch("/api/rate", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: cur.id, choice, tags: [...tags], note: $("note").value.trim(),
-      listen_ms: Math.round(performance.now() - startedAt), switches }) }).then(r => r.json());
-  const r = res.reveal, fmt = (s) => `<b>${s.name}</b> — ${s.artist}${s.year ? ` (${s.year})` : ""}`;
-  $("reveal").innerHTML = `Previous: X = ${fmt(r.x)}<br>A = ${fmt(r.a)}<br>B = ${fmt(r.b)}<br>You picked: <b>${{a: "A", b: "B", tie: "can't tell"}[res.choice]}</b>`;
-  $("reveal").hidden = false;
+    body: JSON.stringify({ id: cur.id, timing: timing(), ...answer }) });
+  const body = await res.json();
+  if (!res.ok) { $("error").textContent = `Not saved: ${body.error}`; $("error").hidden = false; return; }
+  showReveal(body);
   load();
 }
 
-document.querySelectorAll(".clip").forEach(b => b.onclick = () => play(b.dataset.k));
-document.querySelectorAll(".choice").forEach(b => b.onclick = () => choose(b.dataset.c));
+function submit() {
+  if ($("submit").disabled) return;
+  const lv = LEVELS[level];
+  send({ choice: lv.choice, strength: lv.strength, tags: [...tags], note: $("note").value });
+}
+
+function submitBad() {
+  if ($("badSubmit").disabled) return;
+  send({ choice: "bad_clip", strength: null, tags: [], note: $("note").value,
+         bad_clip: { clips: CLIPS.filter((k) => bad.clips.has(k)), reason: bad.reason } });
+}
+
+function showReveal(res) {
+  const r = res.reveal || {};
+  const song = (s) => s ? `<b>${esc(s.title)}</b> — ${esc(s.artist)}${s.year ? ` (${s.year})` : ""}` : "?";
+  const picked = res.choice === "bad_clip" ? "bad clip" : LEVELS.find((l) => l.choice === res.choice && l.strength === res.strength).label;
+  $("reveal").innerHTML = `Previous: X = ${song(r.x)}<br>A = ${song(r.a)}<br>B = ${song(r.b)}<br>You picked: <b>${picked}</b>`;
+  $("reveal").hidden = false;
+}
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
 $("submit").onclick = submit;
+$("badSubmit").onclick = submitBad;
+$("mic").onclick = toggleDictation;
+$("badToggle").onclick =() => { $("badpanel").hidden = !$("badpanel").hidden; };
+$("note").addEventListener("focus", () => { t.noteAt = now(); });
+$("note").addEventListener("blur", () => { if (t.noteAt !== null) { t.noteMs += now() - t.noteAt; t.noteAt = null; } });
+
+document.addEventListener("visibilitychange", () => {
+  if (!t) return;
+  if (document.hidden) t.hiddenAt = now();
+  else if (t.hiddenAt !== null) { t.hiddenMs += now() - t.hiddenAt; t.hiddenAt = null; }
+});
 
 document.addEventListener("keydown", (e) => {
-  if (e.target.tagName === "TEXTAREA") { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } return; }
+  if ($("task").hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.tagName === "TEXTAREA") {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+    else if (e.key === "Escape") e.target.blur();
+    return;
+  }
   const k = e.key.toLowerCase();
-  if (k === "1") play("x"); else if (k === "2") play("a"); else if (k === "3") play("b");
-  else if (k === "f" || e.key === "ArrowLeft") choose("a");
-  else if (k === "j" || e.key === "ArrowRight") choose("b");
-  else if (e.key === "ArrowDown") choose("tie");
+  const lv = LEVELS.findIndex((l) => l.key === k);
+  if (k === "1" || k === "2" || k === "3") play(CLIPS[Number(k) - 1]);
+  else if (lv >= 0) choose(lv);
+  else if (e.key === "ArrowLeft") nudge(-SEEK_STEP_S);
+  else if (e.key === "ArrowRight") nudge(SEEK_STEP_S);
+  else if (k === "m") toggleDictation();
   else if (e.key === "Enter") submit();
-  else if (e.key === " ") { e.preventDefault(); if (active) play(active); }
+  else if (e.key === " ") { if (active) play(active); }
   else return;
+  e.preventDefault();
 });
 
 load();

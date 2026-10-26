@@ -100,7 +100,7 @@ class Vectors:
             out = self.registry.output(track_id, EMBED_STAGE)
             self._files[track_id] = None if out is None else dict(np.load(out[0]))
         data = self._files[track_id]
-        if data is None:
+        if data is None or not len(data["windows"]):  # 3 catalog files were written with no windows
             return None
         index = 0  # full audio
         if window is not None:
@@ -250,11 +250,15 @@ def bootstrap_spearman(scores, human, rng, baseline=BASELINE):
     return metrics, diffs
 
 
+def bootstrap_fits(D, groups, l2, rng, n=WEIGHT_BOOTSTRAP):
+    """(n, channels) weights, each refit on one group resample."""
+    ids, counts = group_resamples(groups, rng, n)
+    return np.array([fit_weights(D[np.repeat(np.arange(len(D)), c[ids].astype(int))], l2) for c in counts])
+
+
 def bootstrap_weights(D, groups, l2, rng):
     """95% CI per channel weight, refitting on group resamples."""
-    ids, counts = group_resamples(groups, rng, WEIGHT_BOOTSTRAP)
-    fits = [fit_weights(D[np.repeat(np.arange(len(D)), c[ids].astype(int))], l2) for c in counts]
-    return np.percentile(fits, [2.5, 97.5], axis=0)
+    return np.percentile(bootstrap_fits(D, groups, l2, rng), [2.5, 97.5], axis=0)
 
 
 def fixed_models(D):

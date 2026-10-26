@@ -96,8 +96,8 @@ def test_lastfm_collapses_versions_and_skips_the_seed_itself(registry):
     assert missing not in {m.track_id for m in out.members}
 
 
-def test_listener_abx_orients_triplets_by_choice_and_keeps_notes(registry):
-    from stemsim.datasets.listener_abx import PILOT_SONGS, RATINGS, ListenerAbx
+def write_listener_abx(registry, rows):
+    from stemsim.datasets.listener_abx import PILOT_SONGS, RATINGS
 
     raw = registry.raw_dir("listener_abx")
     (raw / PILOT_SONGS).write_text(
@@ -105,42 +105,39 @@ def test_listener_abx_orients_triplets_by_choice_and_keeps_notes(registry):
         "x,Song X,Artist,Song X\ny,Song Y,Artist,Song Y (Some Remix)\nz,Song Z,Artist,Song Z\n",
         encoding="utf-8",
     )
-    ratings = [
-        {
-            "id": 1,
-            "kind": "near_far",
-            "x": "x",
-            "a": "y",
-            "b": "z",
-            "play": "mix",
-            "choice": "b",
-            "tags": ["bass"],
-            "note": "same sort of bass",
-        },
-        {
-            "id": 2,
-            "kind": "stem_only",
-            "x": "x",
-            "a": "y",
-            "b": "z",
-            "play": "drums",
-            "choice": "a",
-            "tags": ["drums/percussion"],
-            "note": "",
-        },
-        {
-            "id": 3,
-            "kind": "random",
-            "x": "x",
-            "a": "y",
-            "b": "z",
-            "play": "mix",
-            "choice": "tie",
-            "tags": [],
-            "note": "B is just dialogue",
-        },
-    ]
-    (raw / RATINGS).write_text("\n".join(json.dumps(r) for r in ratings), encoding="utf-8")
+    (raw / RATINGS).write_text("\n".join(json.dumps(r) for r in rows), encoding="utf-8")
+
+
+def rating(rating_id, x="song:x", a="song:a", b="song:b", source="deezer", window=None, **changes):
+    audio = {clip: {"source": source, "ref": f"audio/{track.split(':')[1]}.mp3"} for clip, track in
+             (("x", x), ("a", a), ("b", b))}  # fmt: skip
+    row = {
+        "v": 2, "id": rating_id, "rater_id": "rater2", "session": "s1", "design": "neighbourhood",
+        "split": "fit", "x": x, "a": a, "b": b, "play": "mix", "audio": audio,
+        "window": window, "choice": "b", "strength": 1, "strength_source": "rater", "tags": ["bass"],
+        "note": "", "bad_clip": None, "timing": {"total_ms": 40000},
+    }  # fmt: skip
+    return row | changes
+
+
+def pilot_rating(rating_id, **changes):
+    return rating(
+        rating_id, x="pilot:x", a="pilot:y", b="pilot:z", source="pilot", window=[10.0, 20.0],
+        session="pilot", rater_id="nicolas", split="validation", design="near_far", **changes,
+    )  # fmt: skip
+
+
+def test_listener_abx_orients_triplets_by_choice_and_keeps_notes(registry):
+    from stemsim.datasets.listener_abx import ListenerAbx
+
+    write_listener_abx(
+        registry,
+        [
+            pilot_rating("pilot-01", note="same sort of bass"),
+            pilot_rating("pilot-02", play="drums", choice="a", strength=None, strength_source=None),
+            pilot_rating("pilot-03", choice="tie", strength=None, strength_source=None),
+        ],
+    )
 
     out = ListenerAbx().normalize(registry)
 
@@ -149,9 +146,38 @@ def test_listener_abx_orients_triplets_by_choice_and_keeps_notes(registry):
         ("pilot:x", "pilot:y", "pilot:z", "drums"),  # isolated-stem rating -> that stem's facet
     ]
     assert out.judgments[0].meta["note"] == "same sort of bass"
-    assert {m.clip_start for m in out.members} == {10.0}
+    assert out.judgments[1].meta["strength"] is None  # a pilot rating with no note to infer it from
+    assert {(m.local_id, m.clip_start) for m in out.members} == {("x", 10.0), ("y", 10.0), ("z", 10.0)}
     y = next(t for t in out.tracks if t.track_id == "pilot:y")
+    assert y.audio_source == "pilot" and y.audio_ref == "audio/y.mp3"
     assert y.meta["version_differs"]  # the pilot heard a remix, not the catalog song
+
+
+def test_listener_abx_registry_tracks_keep_rater_split_strength(registry):
+    from stemsim.datasets.listener_abx import ListenerAbx
+
+    bad = {"clips": ["a"], "reason": "silence"}
+    write_listener_abx(
+        registry,
+        [rating("s1-01"), rating("s1-02", choice="bad_clip", strength=None, strength_source=None, bad_clip=bad)],
+    )
+
+    out = ListenerAbx().normalize(registry)
+
+    (j,) = out.judgments  # the bad clip records nothing
+    assert (j.a, j.b, j.c) == ("song:x", "song:b", "song:a")
+    assert {"rater_id": "rater2", "split": "fit", "strength": 1, "strength_source": "rater"}.items() <= j.meta.items()
+    assert j.meta["listen_ms"] == 40000
+    assert {(m.track_id, m.clip_start) for m in out.members} == {("song:x", None), ("song:a", None), ("song:b", None)}
+    assert {t.audio_source for t in out.tracks} == {"deezer"}
+
+
+def test_listener_abx_refuses_two_windows_for_one_track(registry):
+    from stemsim.datasets.listener_abx import ListenerAbx
+
+    write_listener_abx(registry, [rating("s1-01"), rating("s1-02", window=[10, 20])])
+    with pytest.raises(ValueError, match="one window per track"):
+        ListenerAbx().normalize(registry)
 
 
 def test_dim_sim_majority_vote_names_and_clean_flag(registry):

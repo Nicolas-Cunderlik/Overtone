@@ -9,6 +9,7 @@
   python -m stemsim separate [--dataset dim_sim] [--limit 100]   Demucs stems (GPU)
   python -m stemsim embed [--dataset dim_sim] [--limit 100]      MuQ-MuLan vectors (GPU)
   python -m stemsim status                           per-dataset progress
+  python -m stemsim session [--rater nicolas]        build the next rating session (sessions.py)
 
 Every command is safe to re-run and to run alongside the others; a second
 copy of the same stage refuses to start. GPU stages without --dataset work
@@ -71,6 +72,10 @@ def main(argv=None):
         p.add_argument("--dataset", choices=sorted(ADAPTERS))
         p.add_argument("--limit", type=int)
     commands.add_parser("status", help="per-dataset progress")
+    p = commands.add_parser("session", help="build the next ABX rating session")
+    p.add_argument("--rater", default="nicolas")
+    p.add_argument("--seed", type=int, help="for a reproducible session")
+    p.add_argument("--dry-run", action="store_true", help="print the session without writing it")
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -107,6 +112,15 @@ def main(argv=None):
             from .stages import embed as stage
         with registry.exclusive(stage.STAGE.replace(":", "-")):
             print(_run_by_priority(registry, stage.run, args.dataset, args.limit))
+    elif args.command == "session":
+        from . import sessions  # imports torch (via the embed stage's names) and the app model
+
+        name, rows = sessions.build(registry, args.rater, seed=args.seed)
+        print(sessions.summary(rows))
+        if args.dry_run:
+            print(f"(dry run - {name} not written)")
+        else:
+            print(f"Wrote {sessions.write(rows, name)} - rate it with scripts/launch_rating_server.py")
     elif args.command == "status":
         stages = ["audio", "separate", "embed:muq-mulan-large"]
         print(

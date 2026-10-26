@@ -56,7 +56,7 @@ select = ["E", "W", "F", "I", "B", "UP", "S"]
 # Offline research scripts: fixed https URLs, a fixed ffmpeg binary, and
 # random sampling for experiment design (not cryptography)
 "research/**" = ["S310", "S311", "S603"]
-"research/**/tests/**" = ["S101"]
+"tests/unit/research/**" = ["S311"]  # seeded RNGs exercise the research samplers
 # Utility scripts launch fixed commands (venv python, git, mlflow) by design
 "scripts/**" = ["S603", "S607"]
 
