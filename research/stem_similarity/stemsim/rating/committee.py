@@ -1,4 +1,4 @@
-"""Committee scoring (SSM-8): how evenly do plausible similarity models split on
+"""Committee scoring: how evenly do plausible similarity models split on
 a triplet? The session builder's "contested" triplets are the most even splits,
 where an answer teaches the most.
 
@@ -19,7 +19,7 @@ public datasets only, never on a rater's ratings, so validation ratings can't
 leak into selection.
 
 The Pool is in memory (~200 MB for the 20k-song catalog; a 1M-song catalog
-needs SSM-3's index). X is scored against every row in one batched matmul
+needs a precomputed catalog index). X is scored against every row in one batched matmul
 (~6 ms for 16k rows) and callers index the result: indexing the embeddings
 first would copy ~150 MB per anchor.
 """
@@ -137,7 +137,7 @@ def fit(registry, vectors, rng, n_bootstrap=N_BOOTSTRAP):
         all_rows += kept
         names += [name] * len(kept)
     D, names = np.vstack(blocks), np.array(names)
-    groups = sw.triple_groups(all_rows)
+    groups = sw.song_groups(all_rows)
     boot = sw.bootstrap_fits(D, groups, sw.L2, rng, n_bootstrap)
     per_dataset = np.array([sw.fit_weights(D[names == name], sw.L2) for name in sw.FIT_SETS])
     channels = len(sw.CHANNELS)

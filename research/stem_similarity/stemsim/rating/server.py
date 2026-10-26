@@ -1,4 +1,4 @@
-"""Local ABX rating app (SSM-8): serves rate.html, one session of prepared
+"""Local ABX rating app: serves rate.html, one session of prepared
 triplets and their audio, and appends every answer to ratings.jsonl.
 
 Sessions are built ahead of time (python -m stemsim session; row format in
