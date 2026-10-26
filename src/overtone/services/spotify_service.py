@@ -81,7 +81,8 @@ class SpotifyService:
                 raise
 
     def _reset_auth(self):
-        cache_path = getattr(self._client.auth_manager.cache_handler, 'cache_path', None)
+        auth_manager = self._client.auth_manager if self._client is not None else None
+        cache_path = getattr(getattr(auth_manager, 'cache_handler', None), 'cache_path', None)
         if cache_path and os.path.exists(cache_path):
             try:
                 os.remove(cache_path)

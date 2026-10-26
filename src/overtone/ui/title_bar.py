@@ -26,7 +26,7 @@ class TitleBar(QWidget):
         super().__init__(window)
         self._window = window
         self.setFixedHeight(TITLE_BAR_HEIGHT)
-        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"background-color: {theme.WINDOW_BG};")
 
         layout = QHBoxLayout(self)
@@ -34,7 +34,11 @@ class TitleBar(QWidget):
         layout.setSpacing(6)
 
         icon = QLabel()
-        icon.setPixmap(QPixmap(icon_path).scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        icon.setPixmap(
+            QPixmap(icon_path).scaled(
+                16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+            )
+        )
 
         # Segoe MDL2 Assets glyph: ChromeClose
         close_btn = self._button("\ue8bb", "#e81123", "#f1707a")
@@ -47,6 +51,6 @@ class TitleBar(QWidget):
     def _button(self, glyph, hover, pressed):
         btn = QPushButton(glyph)
         btn.setFixedSize(46, TITLE_BAR_HEIGHT)
-        btn.setFocusPolicy(Qt.NoFocus)
+        btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         btn.setStyleSheet(_button_style(hover, pressed))
         return btn

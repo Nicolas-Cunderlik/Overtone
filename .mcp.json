@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "mlflow": {
+      "command": "research/stem_similarity/.venv/Scripts/python.exe",
+      "args": ["-m", "mlflow", "mcp", "run"],
+      "env": {
+        "MLFLOW_TRACKING_URI": "sqlite:///research/stem_similarity/data/mlflow.db",
+        "MLFLOW_MCP_TOOLS": "experiments,runs",
+        "MLFLOW_DISABLE_AGENT_HINT": "1"
+      }
+    }
+  }
+}

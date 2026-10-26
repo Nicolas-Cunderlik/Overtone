@@ -27,8 +27,8 @@ class _Row(QLabel):
         self.key = None
         self._text = ""
         self.setWordWrap(True)
-        self.setAlignment(Qt.AlignCenter)
-        self.setAttribute(Qt.WA_Hover)
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
         if font:
             self.setFont(font)
         self.setStyleSheet(_ROW_STYLE)
@@ -52,10 +52,12 @@ class _Row(QLabel):
         self.setText(text)
         QTimer.singleShot(FLASH_MS, lambda: self.setText(restore) if self.text() == text else None)
 
-    def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton and self.key is not None:
-            self.clicked.emit(self.key)
-        super().mousePressEvent(event)
+    def mousePressEvent(self, ev):
+        if ev is not None and ev.button() == Qt.MouseButton.LeftButton and self.key is not None:
+            # PyQt5's stubs only resolve `self.<signal>` to a bound signal when __init__ takes no required
+            # arguments, so pyright misreads it here; it's a bound signal at runtime
+            self.clicked.emit(self.key)  # pyright: ignore[reportAttributeAccessIssue]
+        super().mousePressEvent(ev)
 
     def _show(self, text):
         self._text = text
@@ -63,15 +65,17 @@ class _Row(QLabel):
 
     def _set_clickable(self, clickable):
         self.setProperty("clickable", clickable)
-        self.setCursor(Qt.PointingHandCursor if clickable else Qt.ArrowCursor)
-        self.style().unpolish(self)  # re-evaluate the [clickable] style selector
-        self.style().polish(self)
+        self.setCursor(Qt.CursorShape.PointingHandCursor if clickable else Qt.CursorShape.ArrowCursor)
+        style = self.style()
+        if style is not None:
+            style.unpolish(self)  # re-evaluate the [clickable] style selector
+            style.polish(self)
 
     def _fit_two_lines(self, text):
         # Rows word-wrap; cap at roughly two lines so three rows always fit
         # the fixed-height box. The full text stays available in the tooltip.
         width = self.width() if self.width() > 50 else 100
-        return QFontMetrics(self.font()).elidedText(text, Qt.ElideRight, int(width * 1.8))
+        return QFontMetrics(self.font()).elidedText(text, Qt.TextElideMode.ElideRight, int(width * 1.8))
 
 
 class ClickableListBox(QFrame):
@@ -84,14 +88,14 @@ class ClickableListBox(QFrame):
         font = QFont(font_family, 10) if font_family else None
 
         self.header = QLabel(title)
-        self.header.setAlignment(Qt.AlignCenter)
+        self.header.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.header.setStyleSheet(f"color: {theme.TEXT}; font-size: 10px;")
         if font:
             self.header.setFont(font)
 
         self.rows = [_Row(font) for _ in range(MAX_ROWS)]
         for row in self.rows:
-            row.clicked.connect(self.item_clicked)
+            row.clicked.connect(self.item_clicked)  # pyright: ignore[reportArgumentType] - same stub gap as in _Row
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 9, 6, 9)

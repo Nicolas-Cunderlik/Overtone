@@ -30,8 +30,10 @@ Run: python -m overtone.ml.evaluate
 """
 
 from collections import Counter
+from typing import cast
 
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import NearestNeighbors
 
@@ -41,8 +43,9 @@ from .paths import CSV_PATH
 K_VALUES = (1, 3, 5)
 
 
-def split(catalog, seed=42):
-    return train_test_split(catalog, test_size=0.2, random_state=seed, stratify=catalog["playlist_genre"])
+def split(catalog, seed=42) -> tuple[pd.DataFrame, pd.DataFrame]:
+    train_df, test_df = train_test_split(catalog, test_size=0.2, random_state=seed, stratify=catalog["playlist_genre"])
+    return cast(pd.DataFrame, train_df), cast(pd.DataFrame, test_df)  # sklearn's stubs say arrays
 
 
 def count_leaks(train_df, test_df):

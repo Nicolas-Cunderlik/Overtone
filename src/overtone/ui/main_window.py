@@ -96,10 +96,10 @@ class SpotifyApp(QWidget):
         # minimised state would only drift out of sync - close it instead.
         # (Without WS_MINIMIZEBOX, the taskbar button and Win+M can't minimise
         # it either.)
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         # Docking shows/hides us as Spotify appears and disappears - that must
         # never pull focus away from Spotify
-        self.setAttribute(Qt.WA_ShowWithoutActivating)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         # Width is fixed; height grows to match Spotify's (see _dock_to_spotify),
         # with the content as the floor - extra height is black padding below it
         # (minimum height is set from the content's natural height, below)
@@ -111,7 +111,7 @@ class SpotifyApp(QWidget):
         """)
 
         # UI elements
-        self.layout = QVBoxLayout()
+        self.content_layout = QVBoxLayout()
         self.title_frame = QFrame()
         self.stats_frame = QFrame()
 
@@ -168,24 +168,24 @@ class SpotifyApp(QWidget):
 
         # Cover on top, then the analytics boxes, then feedback on those results
         self.body_layout.setSpacing(8)
-        self.body_layout.addWidget(self.album_cover_label, alignment=Qt.AlignCenter)
+        self.body_layout.addWidget(self.album_cover_label, alignment=Qt.AlignmentFlag.AlignCenter)
         self.body_layout.addLayout(self.body_stats_layout)
-        self.body_layout.addWidget(self.feedback_frame, alignment=Qt.AlignCenter)
+        self.body_layout.addWidget(self.feedback_frame, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self.title_layout.setAlignment(Qt.AlignCenter)
+        self.title_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.title_layout.setContentsMargins(9, 9, 9, 2)
         self.title_frame.setLayout(self.title_layout)
         self.stats_frame.setLayout(self.body_layout)
 
-        self.layout.addWidget(self.title_frame)
-        self.layout.addSpacing(6)
-        self.layout.addWidget(self.stats_frame)
+        self.content_layout.addWidget(self.title_frame)
+        self.content_layout.addSpacing(6)
+        self.content_layout.addWidget(self.stats_frame)
         # Nested under the title bar, so it no longer gets the style's
         # top-level margins automatically
         # No top margin: the title frame sits directly under the title bar
-        self.layout.setContentsMargins(CONTENT_MARGIN, 0, 0, CONTENT_MARGIN)
-        self.layout.setSpacing(0)  # gaps come from the explicit addSpacing calls
+        self.content_layout.setContentsMargins(CONTENT_MARGIN, 0, 0, CONTENT_MARGIN)
+        self.content_layout.setSpacing(0)  # gaps come from the explicit addSpacing calls
 
         root_layout = QVBoxLayout()
         root_layout.setContentsMargins(0, 0, 0, 0)
@@ -195,7 +195,7 @@ class SpotifyApp(QWidget):
         # content keeps its exact layout and any extra window height lands in
         # the stretch below as black padding
         content = QWidget()
-        content.setLayout(self.layout)
+        content.setLayout(self.content_layout)
         content.setFixedHeight(content.sizeHint().height())
         root_layout.addWidget(content)
         root_layout.addStretch(1)
@@ -245,7 +245,7 @@ class SpotifyApp(QWidget):
         frame.setStyleSheet(f"background-color: {theme.BOX_BG}; border-radius: 8px;")
 
         title = QLabel("Rate These Suggestions")
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(f"color: {theme.TEXT}; font-size: 10px;")
         if font_family:
             title.setFont(QFont(font_family, 10))
@@ -263,8 +263,8 @@ class SpotifyApp(QWidget):
         for btn, tip in ((self.feedback_up_btn, "Good suggestions"), (self.feedback_down_btn, "Poor suggestions")):
             btn.setFixedHeight(30)
             btn.setToolTip(tip)
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.setFocusPolicy(Qt.NoFocus)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             btn.setStyleSheet(_FEEDBACK_BUTTON_STYLE)
             buttons.addWidget(btn)
 
@@ -332,13 +332,13 @@ class SpotifyApp(QWidget):
         else:
             self._dock_to_spotify()
 
-    def changeEvent(self, event):
-        if event.type() == QEvent.ActivationChange and self.isActiveWindow():
+    def changeEvent(self, a0):
+        if a0 is not None and a0.type() == QEvent.Type.ActivationChange and self.isActiveWindow():
             # Keep the pair together in z-order: when we're activated, pull
             # Spotify up to sit directly beneath us (Spotify's own activation is
             # handled by its EVENT_SYSTEM_FOREGROUND hook, which raises us)
             self._pull_spotify_below()
-        super().changeEvent(event)
+        super().changeEvent(a0)
 
     def _pull_spotify_below(self):
         if self._spotify_hwnd is None or not self.isActiveWindow():
@@ -352,7 +352,7 @@ class SpotifyApp(QWidget):
         if self.isVisible():
             self.hide()
 
-    def closeEvent(self, event):
+    def closeEvent(self, a0):
         # Closing is how the user exits. Stop the timers explicitly - closing
         # only hides the window, so a still-running dock timer would re-show it
         # if anything (e.g. the fullscreen cover) kept the app alive.
@@ -365,11 +365,11 @@ class SpotifyApp(QWidget):
         # and spotipy's own request timeout bounds this wait
         if self._poll_worker is not None:
             self._poll_worker.wait(SHUTDOWN_WAIT_MS)
-        super().closeEvent(event)
+        super().closeEvent(a0)
         QApplication.quit()
 
-    def _album_clicked(self, event):
-        if event.button() == Qt.LeftButton:
+    def _album_clicked(self, ev):
+        if ev is not None and ev.button() == Qt.MouseButton.LeftButton:
             try:
                 self.show_fullscreen_cover()
             except Exception:
@@ -397,7 +397,8 @@ class SpotifyApp(QWidget):
             self.check_playback()
 
     def _on_poll_finished(self):
-        self._poll_worker.deleteLater()
+        if self._poll_worker is not None:
+            self._poll_worker.deleteLater()
         self._poll_worker = None
         if self._repoll:
             self._repoll = False
@@ -480,7 +481,9 @@ class SpotifyApp(QWidget):
             self._album_bytes = data
             pixmap = QPixmap()
             pixmap.loadFromData(data)
-            pixmap = pixmap.scaled(CARD_WIDTH, CARD_WIDTH, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            pixmap = pixmap.scaled(
+                CARD_WIDTH, CARD_WIDTH, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+            )
 
             # Rounded pixmap
             rounded = QPixmap(CARD_WIDTH, CARD_WIDTH)
@@ -488,7 +491,7 @@ class SpotifyApp(QWidget):
             painter = QPainter(rounded)
             painter.setRenderHint(QPainter.Antialiasing)
             painter.setBrush(QBrush(pixmap))
-            painter.setPen(Qt.NoPen)
+            painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(0, 0, CARD_WIDTH, CARD_WIDTH, 8, 8)
             painter.end()
 
@@ -551,7 +554,8 @@ class SpotifyApp(QWidget):
         worker.start()
 
     def _on_play_finished(self):
-        self._play_worker.deleteLater()
+        if self._play_worker is not None:
+            self._play_worker.deleteLater()
         self._play_worker = None
 
     def _download_progression(self, index):

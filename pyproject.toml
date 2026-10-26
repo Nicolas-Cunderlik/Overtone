@@ -31,6 +31,7 @@ dev = [
     "pre-commit==4.7.0",
     "ruff==0.17.1",  # keep in step with the rev in .pre-commit-config.yaml
     "pyinstaller==6.22.3",
+    "pyright==1.1.414",  # same engine as Pylance; needs Node.js (fetched automatically if missing)
 ]
 
 [project.scripts]
@@ -41,6 +42,14 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 overtone = ["assets/*"]
+
+[tool.pyright]
+# Basic mode over the app package. Windows is the only target, so ctypes.windll & co. resolve
+# even when CI runs on Linux.
+include = ["src"]
+pythonVersion = "3.13"
+pythonPlatform = "Windows"
+typeCheckingMode = "basic"
 
 [tool.ruff]
 line-length = 120
