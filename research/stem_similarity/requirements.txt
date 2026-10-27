@@ -4,8 +4,9 @@
 #   python -m pip install --no-deps -e ../..   (the app package, for its dedup/catalog code - not its GUI deps)
 demucs==4.1.0
 muq==0.1.0
-# MuQ-MuLan breaks on transformers 5.x (EasyDict config has no _attn_implementation)
-transformers==4.57.6
+# 5.10.1 fixes 5 CVEs in 4.57.6. MuQ-MuLan embeddings were bit-identical to 4.57.6 on 16 dim_sim tracks x 5
+# channels (SSM-29). Early 5.x releases broke MuQ's EasyDict conformer config: re-check embeddings on upgrades
+transformers==5.10.1
 soundfile==0.14.0
 librosa==1.0.0
 numpy==2.5.4
