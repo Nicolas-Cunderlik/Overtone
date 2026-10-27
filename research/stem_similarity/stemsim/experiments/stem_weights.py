@@ -6,23 +6,21 @@ with people more than the mix alone - or the app's current model?
 Read-only: uses the registry and embeddings, writes only an MLflow run.
 
 Setup
-- Fit sets (repeated k-fold CV): dim_sim, magnatagatune. Folds are grouped
-  by song: triplets that share a song, directly or through a chain of shared
-  songs, form one group, so no song is ever on both sides of a fold. Groups
-  are small (largest 5 triplets as of 2026-10-25; 22% of DIM-SIM triplets
-  share a song with another triplet), so this costs no data.
-- The k-fold split is repeated (default 100 times), each repeat shuffling
-  groups into folds with its own seed, so results don't hinge on one lucky
-  or unlucky partition. Every fit-set triplet is scored out-of-fold once per
-  repeat, and its agreement is averaged over the repeats. The spread across
-  repeats is reported as split noise. Repeats remove split noise only: the
-  CIs below come from the finite number of judgments, which repeats can't
-  add to.
+- Fit sets (repeated grouped k-fold CV): dim_sim, magnatagatune. Triplets
+  that share a song, directly or through a chain, form one group, and folds
+  split by group, so no song is on both sides of a fold. Groups are small
+  (largest 5 triplets; 22% of DIM-SIM triplets share a song, as of
+  2026-10-25), so grouping costs no data.
+- The split is repeated (default 100, one seed each) and each triplet's
+  out-of-fold agreement is averaged, so results don't hinge on one
+  partition. The spread across repeats is logged as split noise. Repeats
+  don't narrow the CIs below: those depend on the number of judgments.
 - Held out entirely (never fitted on): listener_abx - overall and per-stem
   facets - and ccmsim (pairs, Spearman). The final weights are fit on all
   fit-set data and applied to these. Fit-set triplets that contain a
-  held-out song are dropped (6 of ~4.4k as of 2026-10-25), so held-out songs
-  never shape the weights.
+  held-out song are dropped (6 of ~4.4k as of 2026-10-25), and the z-score
+  stats below use only the remaining fit-set songs, so held-out songs never
+  shape the weights.
 - Splits are logged, not stored: groups.csv (each judgment's role and group)
   plus the seed and repeat count rebuild every fold exactly.
 - Each song is embedded on the window its dataset's raters heard (membership
@@ -125,9 +123,11 @@ class Vectors:
         return emb, data["rms_db"][index] > SILENT_DB
 
 
-def channel_stats(vectors, rng):
-    """Mean/std of cosine per channel over random pairs of audible channels."""
-    loaded = [v for v in (vectors.get(t) for t in list(vectors._files)) if v is not None]
+def channel_stats(vectors, track_ids, rng):
+    """Mean/std of cosine per channel over random pairs of audible channels,
+    drawn from `track_ids` (full audio). Sorted so the sample doesn't depend
+    on set order."""
+    loaded = [v for v in (vectors.get(t) for t in sorted(track_ids)) if v is not None]
     i, j = rng.integers(0, len(loaded), (2, Z_SAMPLE_PAIRS))
     mean, std = np.zeros(len(CHANNELS)), np.ones(len(CHANNELS))
     for c in range(len(CHANNELS)):
@@ -234,6 +234,11 @@ def repeated_folds(groups, k, repeats, seed):
         fold = (np.random.default_rng([seed, r]).permutation(n_groups) % k)[groups]
         for f in range(k):
             yield r, np.flatnonzero(fold != f), np.flatnonzero(fold == f)
+
+
+def songs(rows):
+    """Every track id in `rows`."""
+    return {t for row in rows for t in (row["a"], row["b"], row["c"]) if t}
 
 
 def touches(row, songs):
@@ -450,12 +455,11 @@ def main(argv=None):
     rng = np.random.default_rng(SEED)
     vectors = Vectors(registry)
     data = {name: load_judgments(registry, name) for name in (*FIT_SETS, *HELD_OUT_TRIPLETS, *HELD_OUT_PAIRS)}
-    for rows, windows in data.values():  # load every needed vector first, so z-stats see them all
-        for row in rows:
-            for t in (row["a"], row["b"], row["c"]):
-                if t:
-                    vectors.get(t, windows.get(t))
-    stats = channel_stats(vectors, rng)
+    held_out = songs(r for name in (*HELD_OUT_TRIPLETS, *HELD_OUT_PAIRS) for r in data[name][0])
+    fit_songs = songs(
+        r for name in FIT_SETS for r in data[name][0] if r["kind"] == "triplet" and not touches(r, held_out)
+    )
+    stats = channel_stats(vectors, fit_songs, rng)  # fit-set songs only: held-out songs never shape the weights
 
     results = []  # (dataset, subset, model, n, agreement, lo, hi)
     differences = []  # (dataset, subset, model, baseline, n, difference, lo, hi)
@@ -469,13 +473,6 @@ def main(argv=None):
     split_rows = []  # groups.csv: every judgment's role in this run and its group
 
     # --- fit sets: repeated out-of-fold scores
-    held_out = {
-        t
-        for name in (*HELD_OUT_TRIPLETS, *HELD_OUT_PAIRS)
-        for r in data[name][0]
-        for t in (r["a"], r["b"], r["c"])
-        if t
-    }
     fit_D, fit_rows, fit_names = [], [], []
     excluded = {}
     for name in FIT_SETS:
