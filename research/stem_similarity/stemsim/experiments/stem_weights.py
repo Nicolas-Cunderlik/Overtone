@@ -241,6 +241,15 @@ def songs(rows):
     return {t for row in rows for t in (row["a"], row["b"], row["c"]) if t}
 
 
+def held_out_songs(registry, rows):
+    """songs(rows), plus the catalog song id behind each pilot track (pilot
+    audio is its own "pilot:" track; the shared "song:" id is in its meta)."""
+    ids = songs(rows)
+    pilot = registry.conn.execute("SELECT track_id, meta FROM tracks WHERE audio_source = ?", (config.PILOT,))
+    ids |= {json.loads(r["meta"]).get("catalog_track") for r in pilot if r["track_id"] in ids}
+    return ids - {None}
+
+
 def touches(row, songs):
     return any(t in songs for t in (row["a"], row["b"], row["c"]) if t)
 
@@ -455,7 +464,7 @@ def main(argv=None):
     rng = np.random.default_rng(SEED)
     vectors = Vectors(registry)
     data = {name: load_judgments(registry, name) for name in (*FIT_SETS, *HELD_OUT_TRIPLETS, *HELD_OUT_PAIRS)}
-    held_out = songs(r for name in (*HELD_OUT_TRIPLETS, *HELD_OUT_PAIRS) for r in data[name][0])
+    held_out = held_out_songs(registry, (r for name in (*HELD_OUT_TRIPLETS, *HELD_OUT_PAIRS) for r in data[name][0]))
     fit_songs = songs(
         r for name in FIT_SETS for r in data[name][0] if r["kind"] == "triplet" and not touches(r, held_out)
     )

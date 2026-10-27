@@ -124,8 +124,9 @@ def fit(registry, vectors, rng, n_bootstrap=N_BOOTSTRAP):
     """The committee, fit on stem_weights' fit sets (loads their vectors into `vectors`)."""
     from ..experiments import stem_weights as sw  # imports mlflow; only fitting needs it
 
-    held_out = sw.songs(
-        r for name in (*sw.HELD_OUT_TRIPLETS, *sw.HELD_OUT_PAIRS) for r in sw.load_judgments(registry, name)[0]
+    held_out = sw.held_out_songs(
+        registry,
+        (r for name in (*sw.HELD_OUT_TRIPLETS, *sw.HELD_OUT_PAIRS) for r in sw.load_judgments(registry, name)[0]),
     )
     data = {}
     for name in sw.FIT_SETS:
