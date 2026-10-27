@@ -1,4 +1,4 @@
-"""Committee scoring (SSM-8): how evenly do plausible similarity models split on
+"""Committee scoring: how evenly do plausible similarity models split on
 a triplet? The session builder's "contested" triplets are the most even splits,
 where an answer teaches the most.
 
@@ -16,10 +16,11 @@ split = weighted share of votes for A; disagreement = 1 - |2 split - 1|
 Stem similarities are stem_weights.py's: per-channel cosine of full-preview
 MuQ-MuLan embeddings, z-scored per channel, silence-gated. Weights are fit on
 public datasets only, never on a rater's ratings, so validation ratings can't
-leak into selection.
+leak into selection. Like stem_weights, fitting drops fit-set triplets that
+contain a held-out song (listener_abx, ccmsim).
 
 The Pool is in memory (~200 MB for the 20k-song catalog; a 1M-song catalog
-needs SSM-3's index). X is scored against every row in one batched matmul
+needs a precomputed catalog index). X is scored against every row in one batched matmul
 (~6 ms for 16k rows) and callers index the result: indexing the embeddings
 first would copy ~150 MB per anchor.
 """
@@ -123,21 +124,28 @@ def fit(registry, vectors, rng, n_bootstrap=N_BOOTSTRAP):
     """The committee, fit on stem_weights' fit sets (loads their vectors into `vectors`)."""
     from ..experiments import stem_weights as sw  # imports mlflow; only fitting needs it
 
-    data = {name: sw.load_judgments(registry, name) for name in sw.FIT_SETS}
+    held_out = sw.held_out_songs(
+        registry,
+        (r for name in (*sw.HELD_OUT_TRIPLETS, *sw.HELD_OUT_PAIRS) for r in sw.load_judgments(registry, name)[0]),
+    )
+    data = {}
+    for name in sw.FIT_SETS:
+        rows, windows = sw.load_judgments(registry, name)
+        data[name] = ([r for r in rows if r["kind"] == "triplet" and not sw.touches(r, held_out)], windows)
     for rows, windows in data.values():
         for row in rows:
             for t in (row["a"], row["b"], row["c"]):
                 if t:
                     vectors.get(t, windows.get(t))
-    stats = sw.channel_stats(vectors, rng)
+    stats = sw.channel_stats(vectors, sw.songs(r for rows, _ in data.values() for r in rows), rng)
     blocks, all_rows, names = [], [], []
     for name, (rows, windows) in data.items():
-        D, kept = sw.features(vectors, [r for r in rows if r["kind"] == "triplet"], windows, stats)
+        D, kept = sw.features(vectors, rows, windows, stats)
         blocks.append(D)
         all_rows += kept
         names += [name] * len(kept)
     D, names = np.vstack(blocks), np.array(names)
-    groups = sw.triple_groups(all_rows)
+    groups = sw.song_groups(all_rows)
     boot = sw.bootstrap_fits(D, groups, sw.L2, rng, n_bootstrap)
     per_dataset = np.array([sw.fit_weights(D[names == name], sw.L2) for name in sw.FIT_SETS])
     channels = len(sw.CHANNELS)

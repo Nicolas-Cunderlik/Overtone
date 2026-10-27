@@ -1,4 +1,4 @@
-"""Session builder (SSM-8): prepares one rating session (which triplets, which
+"""Session builder: prepares one rating session (which triplets, which
 audio) so the rating server (server.py) does no selection and needs no torch.
 
     python -m stemsim session [--rater nicolas] [--seed N] [--dry-run]

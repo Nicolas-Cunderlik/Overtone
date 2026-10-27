@@ -14,7 +14,7 @@ judgment, and session building skips flagged tracks from then on.
 
 Tags: one per Demucs stem the model weighs (instruments = the "other" stem),
 plus one for whole-mix reasons. Finer reasons (groove, era) go in the note,
-for LLM enrichment (SSM-7).
+for LLM enrichment.
 
 Splits are per song, so they survive catalog growth and new raters: a song is
 validation when a salted hash of its track id lands in the first

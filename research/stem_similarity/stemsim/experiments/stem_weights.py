@@ -1,17 +1,28 @@
 """Experiment: do per-stem similarities, weighted by human judgments, agree
 with people more than the mix alone - or the app's current model?
 
-    python -m stemsim.experiments.stem_weights [--run-name NAME] [--l2 1.0] [--folds 5]
+    python -m stemsim.experiments.stem_weights [--run-name NAME] [--l2 1.0] [--folds 5] [--repeats 100]
 
 Read-only: uses the registry and embeddings, writes only an MLflow run.
 
 Setup
-- Fit sets (k-fold CV): dim_sim, magnatagatune. Folds are grouped by the
-  triple of songs, so MagnaTagATune's two orderings of one triple never
-  straddle a fold. Every fit-set triplet is scored out-of-fold.
+- Fit sets (repeated grouped k-fold CV): dim_sim, magnatagatune. Triplets
+  that share a song, directly or through a chain, form one group, and folds
+  split by group, so no song is on both sides of a fold. Groups are small
+  (largest 5 triplets; 22% of DIM-SIM triplets share a song, as of
+  2026-10-25), so grouping costs no data.
+- The split is repeated (default 100, one seed each) and each triplet's
+  out-of-fold agreement is averaged, so results don't hinge on one
+  partition. The spread across repeats is logged as split noise. Repeats
+  don't narrow the CIs below: those depend on the number of judgments.
 - Held out entirely (never fitted on): listener_abx - overall and per-stem
   facets - and ccmsim (pairs, Spearman). The final weights are fit on all
-  fit-set data and applied to these.
+  fit-set data and applied to these. Fit-set triplets that contain a
+  held-out song are dropped (6 of ~4.4k as of 2026-10-25), and the z-score
+  stats below use only the remaining fit-set songs, so held-out songs never
+  shape the weights.
+- Splits are logged, not stored: groups.csv (each judgment's role and group)
+  plus the seed and repeat count rebuild every fold exactly.
 - Each song is embedded on the window its dataset's raters heard (membership
   clip) when there is one, else the full audio.
 - Per channel (mix, drums, bass, vocals, other): cosine similarity, z-scored
@@ -33,8 +44,9 @@ Uncertainty (bootstrap, 95%)
   With n = 1794 DIM-SIM triplets, single-model CIs are about +-2 points -
   as wide as the stems-vs-mix gap itself - so only the paired CI answers
   "do stems help?".
-- Resampling draws whole song triples, not rows: rows sharing a triple (e.g.
-  MagnaTagATune's two orderings) aren't independent evidence.
+- Resampling draws whole song groups (the same groups as the folds), not
+  rows: triplets sharing a song (e.g. MagnaTagATune's two orderings of one
+  triple) aren't independent evidence.
 - Weights: refit on group resamples. The fold std understates their
   uncertainty because folds share 80% of their data; between v0 (660 DIM-SIM
   triplets) and v1 (1794) bass moved 0.04 -> 0.11, far outside +-0.02.
@@ -50,7 +62,6 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 from scipy.stats import spearmanr
-from sklearn.model_selection import GroupKFold
 
 from .. import config, tracking
 from ..registry import Registry
@@ -67,6 +78,8 @@ Z_SAMPLE_PAIRS = 20_000
 BOOTSTRAP = 2_000
 WEIGHT_BOOTSTRAP = 500  # each resample is a full refit
 L2 = 1.0
+FOLDS = 5
+CV_REPEATS = 100
 SEED = 0
 BASELINE = "mix only"
 APP_MODEL = "app model (current)"
@@ -74,16 +87,14 @@ APP_MODEL = "app model (current)"
 # --- run report (report.py): the experiment-level sections
 SUCCESS = (
     "Stems beat the mix alone - and the current app model - on held-out human judgments, with the paired "
-    "95% CI of the difference excluding zero. KAN-10's bar: the best configuration beats the current app "
+    "95% CI of the difference excluding zero. At minimum: the best configuration beats the current app "
     "model on the held-out sets (or we learn why not)."
 )
 CAVEATS = """\
 - listener_abx, the target that matters most, is small (see n in Results): its CIs are wide.
-- DIM-SIM raters judged 3 s moments of a different provider's previews, not our Deezer audio (KAN-12).
-- MagnaTagATune audio is 32 kbps MP3 - a domain shift from the catalog (KAN-12).
-- Folds and bootstrap resamples group by song triple, not song (KAN-9): a song in several triples can sit
-  on both sides of a fold, and the CIs are slightly narrow."""
-RELATED = ("KAN-10", "KAN-9", "KAN-12", "KAN-28")
+- DIM-SIM raters judged 3 s moments of a different provider's previews, not our Deezer audio.
+- MagnaTagATune audio is 32 kbps MP3 - a domain shift from the catalog."""
+RELATED = ("SSM-19", "SSM-22", "SSM-10", "SSM-11")
 REPORT_MODELS = ("mix only", "equal weights", "fitted (out-of-fold)", "fitted", APP_MODEL)
 REPORT_MIN_N = 5  # smaller slices (e.g. single listener_abx facet ratings) stay in the CSVs
 
@@ -112,9 +123,11 @@ class Vectors:
         return emb, data["rms_db"][index] > SILENT_DB
 
 
-def channel_stats(vectors, rng):
-    """Mean/std of cosine per channel over random pairs of audible channels."""
-    loaded = [v for v in (vectors.get(t) for t in list(vectors._files)) if v is not None]
+def channel_stats(vectors, track_ids, rng):
+    """Mean/std of cosine per channel over random pairs of audible channels,
+    drawn from `track_ids` (full audio). Sorted so the sample doesn't depend
+    on set order."""
+    loaded = [v for v in (vectors.get(t) for t in sorted(track_ids)) if v is not None]
     i, j = rng.integers(0, len(loaded), (2, Z_SAMPLE_PAIRS))
     mean, std = np.zeros(len(CHANNELS)), np.ones(len(CHANNELS))
     for c in range(len(CHANNELS)):
@@ -141,8 +154,9 @@ def load_judgments(registry, dataset):
             (dataset,),
         )
     }
-    rows = registry.conn.execute(
-        "SELECT kind, a, b, c, value, weight, facet, meta FROM judgments WHERE dataset = ?", (dataset,)
+    rows = registry.conn.execute(  # ORDER BY: group ids (and so folds) follow row order
+        "SELECT id, kind, a, b, c, value, weight, facet, meta FROM judgments WHERE dataset = ? ORDER BY id",
+        (dataset,),
     ).fetchall()
     return rows, windows
 
@@ -180,9 +194,64 @@ def correctness(scores):
     return np.where(np.isnan(scores), np.nan, (scores > 0) + 0.5 * (scores == 0))
 
 
+def row_correctness(scores):
+    """correctness() per row; (repeats, rows) scores from repeated CV are averaged over the repeats."""
+    c = correctness(scores)
+    return c.mean(0) if c.ndim == 2 else c
+
+
 def triple_groups(rows):
-    """Group id per row: rows over the same three songs share one."""
+    """Group id per row: rows over the same three songs share one. (The rating
+    committee's bootstrap; this experiment groups by song, see song_groups.)"""
     return pd.factorize(pd.Series(["|".join(sorted(t for t in (r["a"], r["b"], r["c"]) if t)) for r in rows]))[0]
+
+
+def song_groups(rows):
+    """Group id per row: rows linked by shared songs, directly or through a
+    chain, share one - so splitting by group never puts a song on both sides."""
+    parent = {}
+
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for r in rows:
+        songs = [t for t in (r["a"], r["b"], r["c"]) if t]
+        for t in songs[1:]:
+            parent[find(t)] = find(songs[0])
+    return pd.factorize(pd.Series([find(r["a"]) for r in rows], dtype=object))[0]
+
+
+def repeated_folds(groups, k, repeats, seed):
+    """Yield (repeat, train, test) row indices: k folds of whole groups,
+    reshuffled each repeat. A repeat's split depends only on (seed, repeat)
+    and the group ids, so groups.csv + the seed rebuild it exactly."""
+    n_groups = int(groups.max()) + 1
+    for r in range(repeats):
+        fold = (np.random.default_rng([seed, r]).permutation(n_groups) % k)[groups]
+        for f in range(k):
+            yield r, np.flatnonzero(fold != f), np.flatnonzero(fold == f)
+
+
+def songs(rows):
+    """Every track id in `rows`."""
+    return {t for row in rows for t in (row["a"], row["b"], row["c"]) if t}
+
+
+def held_out_songs(registry, rows):
+    """songs(rows), plus the catalog song id behind each pilot track (pilot
+    audio is its own "pilot:" track; the shared "song:" id is in its meta)."""
+    ids = songs(rows)
+    pilot = registry.conn.execute("SELECT track_id, meta FROM tracks WHERE audio_source = ?", (config.PILOT,))
+    ids |= {json.loads(r["meta"]).get("catalog_track") for r in pilot if r["track_id"] in ids}
+    return ids - {None}
+
+
+def touches(row, songs):
+    return any(t in songs for t in (row["a"], row["b"], row["c"]) if t)
 
 
 def group_resamples(groups, rng, n):
@@ -209,12 +278,13 @@ def _boot_mean(values, ids, counts):
 
 
 def bootstrap_agreement(scores, groups, rng, baselines=(BASELINE,)):
-    """scores: {model: per-row scores}, all aligned on the same rows.
+    """scores: {model: per-row scores, or (repeats, rows) from repeated CV},
+    all aligned on the same rows.
     Returns ({model: (n, agreement, lo, hi)}, {(model, baseline): (n, diff, lo, hi)}).
     One set of resamples for everything, so differences are paired; a
     difference uses only the rows both models scored."""
     ids, counts = group_resamples(groups, rng, BOOTSTRAP)
-    correct = {model: correctness(s) for model, s in scores.items()}
+    correct = {model: row_correctness(s) for model, s in scores.items()}
     metrics = {}
     for model, c in correct.items():
         point, lo, hi, n = _boot_mean(c, ids, counts)
@@ -297,8 +367,8 @@ def _verdict(lo, hi):
     return "higher" if lo > 0 else "lower" if hi < 0 else "no difference shown"
 
 
-def results_markdown(table, diff_table=None, weights=None):
-    """The Results section: main models per dataset, paired differences, weights."""
+def results_markdown(table, diff_table=None, weights=None, split_noise=None):
+    """The Results section: main models per dataset, paired differences, split noise, weights."""
     t = table[table["model"].isin(REPORT_MODELS) & (table["n"] >= REPORT_MIN_N)]
     lines = [
         "| Dataset | Subset | n | Mix only | Equal weights | Fitted | App model |",
@@ -333,6 +403,19 @@ def results_markdown(table, diff_table=None, weights=None):
     else:
         parts.append("_No paired differences in this run (added in v2-paired-cis)._")
 
+    if split_noise is not None:
+        rows = [
+            f"| {r.dataset} | {r.subset} | {r.n} | {r.mean:.3f} | {r.std:.4f} | {r.min:.3f} to {r.max:.3f} |"
+            for r in split_noise.itertuples()
+        ]
+        header = ["| Dataset | Subset | n | Mean | Std | Range |", "|---|---|---|---|---|---|"]
+        parts += [
+            "### Split noise",
+            f"Fitted out-of-fold agreement per CV repeat ({split_noise['repeats'].iloc[0]} repeats): how much "
+            "the result depends on the partition alone. The Fitted column above averages over the repeats.",
+            "\n".join([*header, *rows]),
+        ]
+
     if weights:
         final = weights["final"]
         if "ci_low" in weights:
@@ -348,16 +431,16 @@ def results_markdown(table, diff_table=None, weights=None):
     return "\n\n".join(parts)
 
 
-def write_report(run, table, diff_table, weights, runtime_s=None):
+def write_report(run, table, diff_table, weights, split_noise=None, runtime_s=None):
     params = run.data.params
     command = (
         f".venv/Scripts/python -m stemsim.experiments.stem_weights --run-name {run.info.run_name} "
-        f"--l2 {params.get('l2', 1.0)} --folds {params.get('folds', 5)}"
+        f"--l2 {params.get('l2', L2)} --folds {params.get('folds', FOLDS)} --repeats {params.get('cv_repeats', 1)}"
     )
     text = report.render(
         run,
         __doc__,
-        results=results_markdown(table, diff_table, weights),
+        results=results_markdown(table, diff_table, weights, split_noise),
         success=SUCCESS,
         caveats=CAVEATS,
         related=RELATED,
@@ -371,7 +454,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--run-name", default="stem-weights")
     parser.add_argument("--l2", type=float, default=L2)
-    parser.add_argument("--folds", type=int, default=5)
+    parser.add_argument("--folds", type=int, default=FOLDS)
+    parser.add_argument("--repeats", type=int, default=CV_REPEATS, help="CV repeats, each a fresh seeded split")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     started = time.perf_counter()
@@ -380,12 +464,11 @@ def main(argv=None):
     rng = np.random.default_rng(SEED)
     vectors = Vectors(registry)
     data = {name: load_judgments(registry, name) for name in (*FIT_SETS, *HELD_OUT_TRIPLETS, *HELD_OUT_PAIRS)}
-    for rows, windows in data.values():  # load every needed vector first, so z-stats see them all
-        for row in rows:
-            for t in (row["a"], row["b"], row["c"]):
-                if t:
-                    vectors.get(t, windows.get(t))
-    stats = channel_stats(vectors, rng)
+    held_out = held_out_songs(registry, (r for name in (*HELD_OUT_TRIPLETS, *HELD_OUT_PAIRS) for r in data[name][0]))
+    fit_songs = songs(
+        r for name in FIT_SETS for r in data[name][0] if r["kind"] == "triplet" and not touches(r, held_out)
+    )
+    stats = channel_stats(vectors, fit_songs, rng)  # fit-set songs only: held-out songs never shape the weights
 
     results = []  # (dataset, subset, model, n, agreement, lo, hi)
     differences = []  # (dataset, subset, model, baseline, n, difference, lo, hi)
@@ -396,32 +479,61 @@ def main(argv=None):
         for (model, base), (n, point, lo, hi) in diffs.items():
             differences.append((dataset, subset, model, base, n, point, lo, hi))
 
-    # --- fit sets: out-of-fold scores
+    split_rows = []  # groups.csv: every judgment's role in this run and its group
+
+    # --- fit sets: repeated out-of-fold scores
     fit_D, fit_rows, fit_names = [], [], []
+    excluded = {}
     for name in FIT_SETS:
         rows, windows = data[name]
-        D, kept = features(vectors, [r for r in rows if r["kind"] == "triplet"], windows, stats)
+        triplets = [r for r in rows if r["kind"] == "triplet"]
+        overlap = [r for r in triplets if touches(r, held_out)]
+        D, kept = features(vectors, [r for r in triplets if not touches(r, held_out)], windows, stats)
         fit_D.append(D)
         fit_rows += kept
         fit_names += [name] * len(kept)
-        logger.info("%s: %d of %d triplets have all three songs embedded", name, len(kept), len(rows))
+        excluded[name] = len(overlap)
+        kept_ids = {r["id"] for r in kept}
+        overlap_ids = {r["id"] for r in overlap}
+        for r in triplets:
+            if r["id"] not in kept_ids:
+                role = "excluded: held-out song" if r["id"] in overlap_ids else "excluded: not embedded"
+                split_rows.append((r["id"], name, role, None))
+        logger.info(
+            "%s: %d of %d triplets used (%d dropped: share a song with a held-out set)",
+            name,
+            len(kept),
+            len(triplets),
+            len(overlap),
+        )
     D = np.vstack(fit_D)
     names = np.array(fit_names)
-    # Stable group ids (Python's hash() is randomized per process, which would reshuffle folds)
-    groups = triple_groups(fit_rows)
-    oof = np.zeros(len(D))
+    groups = song_groups(fit_rows)
+    split_rows += [(r["id"], n, "fit", int(g)) for r, n, g in zip(fit_rows, names, groups, strict=True)]
+    oof = np.full((args.repeats, len(D)), np.nan)
     fold_weights = []
-    for train, test in GroupKFold(n_splits=args.folds).split(D, groups=groups):
+    for repeat, train, test in repeated_folds(groups, args.folds, args.repeats, SEED):
         w = fit_weights(D[train], args.l2)
         fold_weights.append(w)
-        oof[test] = D[test] @ w
+        oof[repeat, test] = D[test] @ w
     clean = np.array([json.loads(r["meta"]).get("clean", False) for r in fit_rows])
+    split_noise = []  # (dataset, subset, n, repeats, mean, std, min, max) of per-repeat fitted agreement
     for name in FIT_SETS:
         for subset, mask in (("all", names == name), ("clean", (names == name) & clean)):
             if subset == "clean" and name != "dim_sim":
                 continue
-            scored = {"fitted (out-of-fold)": oof[mask], **fixed_models(D[mask])}
+            scored = {"fitted (out-of-fold)": oof[:, mask], **fixed_models(D[mask])}
             record(name, subset, *bootstrap_agreement(scored, groups[mask], rng))
+            per_repeat = correctness(oof[:, mask]).mean(1)
+            split_noise.append(
+                (
+                    name,
+                    subset,
+                    int(mask.sum()),
+                    args.repeats,
+                    *(float(f(per_repeat)) for f in (np.mean, np.std, np.min, np.max)),
+                )
+            )
 
     # --- final weights, applied to held-out sets
     w_final = fit_weights(D, args.l2)
@@ -431,7 +543,8 @@ def main(argv=None):
         H, kept = features(vectors, rows, windows, stats)
         facets = np.array([r["facet"] for r in kept])
         app = app_model_scores(kept)
-        held_groups = triple_groups(kept)
+        held_groups = song_groups(kept)
+        split_rows += [(r["id"], name, "held out", int(g)) for r, g in zip(kept, held_groups, strict=True)]
         for facet in sorted(set(facets)):
             mask = facets == facet
             scored = {"fitted": H[mask] @ w_final, **fixed_models(H[mask])}
@@ -447,6 +560,13 @@ def main(argv=None):
             for r in rows
             if r["kind"] == "pair"
         ]
+        split_rows += [
+            (r["id"], name, "held out", None)
+            for r in rows
+            if r["kind"] == "pair"
+            and vectors.get(r["a"], windows.get(r["a"])) is not None
+            and vectors.get(r["b"], windows.get(r["b"])) is not None
+        ]
         pairs = [(x, y, v) for x, y, v in pairs if x is not None and y is not None]
         if len(pairs) >= 3:
             S = np.array([zsim(x, y, *stats) for x, y, _ in pairs])
@@ -457,6 +577,10 @@ def main(argv=None):
     table = pd.DataFrame(results, columns=["dataset", "subset", "model", "n", "agreement", "ci_low", "ci_high"])
     diff_table = pd.DataFrame(
         differences, columns=["dataset", "subset", "model", "baseline", "n", "difference", "ci_low", "ci_high"]
+    )
+    noise_table = pd.DataFrame(split_noise, columns=["dataset", "subset", "n", "repeats", "mean", "std", "min", "max"])
+    groups_table = pd.DataFrame(split_rows, columns=["judgment_id", "dataset", "role", "group"]).astype(
+        {"group": "Int64"}
     )
     weights = {
         "final": dict(zip(CHANNELS, map(float, w_final), strict=True)),
@@ -471,6 +595,10 @@ def main(argv=None):
     params = {
         "l2": args.l2,
         "folds": args.folds,
+        "cv_repeats": args.repeats,
+        "seed": SEED,
+        "split_groups": "song",  # triplets linked by shared songs (v0-v2: "triple")
+        "excluded_held_out_overlap": sum(excluded.values()),
         "silent_db": SILENT_DB,
         "embedding": config.EMBED_STAGE,
         "fit_sets": ",".join(FIT_SETS),
@@ -486,16 +614,24 @@ def main(argv=None):
                 mlflow.log_metric(key, row.difference)
         for channel, value in weights["final"].items():
             mlflow.log_metric(f"weight.{channel}", value)
+        for row in noise_table.itertuples():
+            mlflow.log_metric(_metric_key("split_std", row.dataset, row.subset), row.std)
         mlflow.log_text(table.to_csv(index=False), "results.csv")
         mlflow.log_text(diff_table.to_csv(index=False), "differences.csv")
+        mlflow.log_text(noise_table.to_csv(index=False), "split_noise.csv")
+        mlflow.log_text(groups_table.to_csv(index=False), "groups.csv")
         mlflow.log_dict(weights, "weights.json")
-    write_report(mlflow.get_run(active.info.run_id), table, diff_table, weights, time.perf_counter() - started)
+    write_report(
+        mlflow.get_run(active.info.run_id), table, diff_table, weights, noise_table, time.perf_counter() - started
+    )
 
     pd.set_option("display.width", 160)
     fmt = {"float_format": lambda x: f"{x:.3f}", "index": False}
     print(table.to_string(**fmt))
     print("\npaired differences (model - baseline, same resamples):")
     print(diff_table.to_string(**fmt))
+    print(f"\nsplit noise (fitted out-of-fold agreement across {args.repeats} CV repeats):")
+    print(noise_table.to_string(**fmt))
     print("\nweights (final):", {k: round(v, 3) for k, v in weights["final"].items()})
     print("weights (95% CI):", {c: f"{weights['ci_low'][c]:.2f}-{weights['ci_high'][c]:.2f}" for c in CHANNELS})
     print(

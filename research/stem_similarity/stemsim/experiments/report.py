@@ -1,8 +1,8 @@
 """Run reports: every MLflow run carries a report.md saying why it ran, how,
 and what it found - readable months later without the code or the chat.
 
-Template: report_template.md (stdlib string.Template, $name placeholders;
-KAN-29 weighs moving templates to Jinja). Sections come from three places:
+Template: report_template.md (stdlib string.Template, $name placeholders).
+Sections come from three places:
   the run         metadata, git commit, data snapshot (data.* params),
                   parameters, artifacts, reproduce command
   the experiment  question + approach (its module docstring, so the
