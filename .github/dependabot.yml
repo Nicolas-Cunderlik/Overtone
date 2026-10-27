@@ -5,6 +5,9 @@ version: 2
 updates:
   - package-ecosystem: pip
     directory: /
+    # A root pip job also scans nested requirements files; keep the research pins out of version updates
+    exclude-paths:
+      - "research/**"
     schedule:
       interval: monthly
     groups:
