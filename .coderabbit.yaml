@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit PR review settings. It reviews every non-draft PR into main.
+language: en-US
+reviews:
+  profile: chill  # fewer nitpicks; ruff and pre-commit already cover style
+  high_level_summary: true
+  poem: false
+  request_changes_workflow: false  # comments only; the owner decides what to merge
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!data/**"
+    - "!models/**"
+    - "!build/**"
+    - "!dist/**"
+    - "!research/stem_similarity/data/**"
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "CLAUDE.md"  # project conventions: threading, services, constants, secrets, tests

@@ -4,8 +4,7 @@
 #   python -m pip install --no-deps -e ../..   (the app package, for its dedup/catalog code - not its GUI deps)
 demucs==4.1.0
 muq==0.1.0
-# MuQ-MuLan breaks on transformers 5.x (EasyDict config has no _attn_implementation)
-transformers==4.57.6
+transformers==5.10.1
 soundfile==0.14.0
 librosa==1.0.0
 numpy==2.5.4
@@ -13,7 +12,8 @@ pandas==3.0.6
 scipy==1.18.1
 scikit-learn==1.9.1
 joblib==1.6.0
-platformdirs==4.13.5  # overtone.config
+platformdirs==4.13.5
 pytest==9.1.1
-mlflow==3.17.2  # experiment tracking (stemsim/tracking.py)
-faster-whisper==1.2.1  # rating-app dictation (stemsim/rating/dictation.py); runs on CPU, model downloads on first use
+mlflow==3.17.2
+fastmcp==3.4.11
+faster-whisper==1.2.1
