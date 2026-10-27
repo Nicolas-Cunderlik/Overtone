@@ -19,6 +19,8 @@ Feature sets are named variants rather than a fixed count - which columns
 actually help is an empirical question, answered by evaluate.py.
 """
 
+from typing import cast
+
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -166,7 +168,10 @@ def load_catalog(csv_path, dedupe=True):
     tracks = tracks.sort_values(["song_group", "track_popularity", "_title_len"], ascending=[True, False, True])
     aliases = tracks.groupby("song_group")["track_id"].agg(";".join)
 
-    df["song_group"] = df["track_id"].map(dict(zip(tracks["track_id"], tracks["song_group"], strict=True)))
+    # cast: pandas types df[col] as Series | DataFrame
+    df["song_group"] = cast(pd.Series, df["track_id"]).map(
+        dict(zip(tracks["track_id"], tracks["song_group"], strict=True))
+    )
     labels = df.groupby("song_group").agg(
         playlist_genre=("playlist_genre", lambda s: s.mode().iat[0]),
         playlist_subgenre=("playlist_subgenre", lambda s: s.mode().iat[0]),

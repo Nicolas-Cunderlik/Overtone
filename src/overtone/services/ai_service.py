@@ -11,12 +11,16 @@ Flow per track:
 """
 
 import logging
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
 from .. import auth
 from ..music.chord_schema import ChordSuggestions, strict_json_schema, validate_suggestions
 from .chord_cache import ChordCache
+
+if TYPE_CHECKING:  # openai is imported lazily (auth.get_openai_client); its types are for pyright only
+    from openai.types.shared_params import ResponseFormatJSONSchema
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +50,7 @@ rhythm, pushes/anticipations and repeated strikes where it suits the style.
 or more for arpeggios - whichever fits the song's instrumentation.
 - Titles are short (at most 40 characters) and describe the feel."""
 
-_RESPONSE_FORMAT = {
+_RESPONSE_FORMAT: "ResponseFormatJSONSchema" = {
     "type": "json_schema",
     "json_schema": {"name": "chord_suggestions", "strict": True, "schema": strict_json_schema()},
 }
@@ -83,7 +87,7 @@ class AIService:
         ]
         for attempt in range(1 + MAX_RETRIES):
             content, problems = self._attempt(messages)
-            if not problems:
+            if content is not None and not problems:  # _attempt pairs no problems with content
                 suggestions = ChordSuggestions.model_validate_json(content)
                 if track_id:
                     self._cache.put(track_id, suggestions)
@@ -113,6 +117,8 @@ class AIService:
 
     def _attempt(self, messages):
         """One API call. Returns (raw_content, problems) - problems empty if valid."""
+        if self._client is None:
+            return None, ["client unavailable"]
         try:
             response = self._client.chat.completions.create(
                 model=MODEL,

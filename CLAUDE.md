@@ -27,6 +27,7 @@ The owner steers this project and wants to understand it deeply, not to have it 
 | Headless smoke check | `overtone --self-test` (exit 0 = model loads and a lookup works) |
 | Tests | `pytest` (unit only: `pytest tests/unit`) |
 | Lint + format | `pre-commit run --all-files` (ruff check/format + hygiene hooks) |
+| Type check | `pyright` (basic mode over `src/`, config in `pyproject.toml`; also runs in CI) |
 | Train similarity model | `python -m overtone.ml.download_dataset` then `python -m overtone.ml.train` |
 | Compare model variants | `python -m overtone.ml.evaluate` |
 | Build exe | `pyinstaller app.spec`, then `dist\Overtone.exe --self-test` |

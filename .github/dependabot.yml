@@ -1,0 +1,26 @@
+# Version updates: app dependencies (pyproject.toml) and CI actions, monthly, one grouped PR each.
+# The research venv (research/stem_similarity/requirements.txt) is deliberately left out, so experiments
+# stay reproducible; it still gets Dependabot *security* alerts and PRs, which don't need this file.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    # A root pip job also scans nested requirements files; keep the research pins out of version updates
+    exclude-paths:
+      - "research/**"
+    schedule:
+      interval: monthly
+    groups:
+      app:
+        patterns: ["*"]
+    commit-message:
+      prefix: deps
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci

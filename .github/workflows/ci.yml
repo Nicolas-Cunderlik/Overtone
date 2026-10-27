@@ -38,5 +38,7 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install -e ".[dev]"
+      # Type check here rather than in the lint job: pyright needs the app's dependencies installed
+      - run: pyright
       # Includes tests/unit/research: the research pipeline's normalization layer is pure Python
       - run: pytest tests/unit
