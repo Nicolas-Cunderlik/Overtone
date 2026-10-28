@@ -173,8 +173,7 @@ class Registry:
     ):
         """Tracks with no final outcome for `stage` yet - and, with `requires`,
         only those whose `requires` stage is done (its output is the input);
-        with `skip_done`, not those whose `skip_done` stage is already done
-        (`stage` only helps that one)."""
+        with `skip_done`, not those already done for that stage."""
         final = (DONE, UNAVAILABLE) if retry_failed else (DONE, UNAVAILABLE, FAILED)
         placeholders = ",".join("?" * len(final))
         sql = f"""SELECT t.* FROM tracks t

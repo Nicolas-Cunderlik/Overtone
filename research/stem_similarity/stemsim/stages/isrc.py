@@ -1,23 +1,14 @@
-"""Stage: find each Deezer-bound track's ISRC on Spotify, for the audio stage.
+"""Stage: find each Deezer-bound track's ISRC on Spotify, so the audio stage
+can fetch that exact recording instead of matching by title.
 
-An ISRC names one exact recording, so the audio stage can fetch the Deezer
-preview by ISRC instead of guessing from the title. Title search rejects
-real matches whose titles carry extra words ("C.R.E.A.M." vs "C.R.E.A.M.
-(Cash Rules Everything Around Me)") and can pick the wrong remix. On the
-pilot's 25 titles that differ from Deezer's, the Spotify ISRC led to the
-right recording for all 25 (23 with a preview).
+Tracks with a Spotify id are looked up in batches; the rest, and ids without
+an ISRC, are searched by artist + title under the audio stage's matching
+rules. Only tracks still without audio are looked up.
 
-  Spotify id known (spotify_catalog)  batch lookup, 50 tracks per call
-  no id, or the id has no ISRC        search by artist + title, accepting a
-  (dim_sim, Last.fm-only songs)       hit only under the audio stage's title
-                                      rules (audio.matching_hits)
-
-Only tracks still without audio are looked up. Outcomes: `done` with detail
-{"isrc", "duration_s", "spotify_id", "spotify_title", "via"}; `unavailable`
-when Spotify has no match or no ISRC (the audio stage then falls back to
-Deezer title search); `failed` on network errors, retried next run.
-Uses app-only (client credentials) auth, so the app's user token is never
-touched, and the standard library only (the research venv has no spotipy).
+Outcomes: `done` with detail {"isrc", "duration_s", "spotify_id",
+"spotify_title", "via"}; `unavailable` when no matching track has an ISRC;
+`failed` on network errors, retried next run. Uses app-only auth, so the
+app's user token is never touched.
 """
 
 import base64
@@ -38,18 +29,18 @@ from .audio import NETWORK_ERRORS, matching_hits
 logger = logging.getLogger(__name__)
 
 STAGE = config.ISRC_STAGE
-TOKEN_URL = "https://accounts.spotify.com/api/token"  # noqa: S105 - an endpoint, not a secret
+AUTH_URL = "https://accounts.spotify.com/api/token"
 API_URL = "https://api.spotify.com/v1"
 BATCH_SIZE = 50  # Spotify's maximum ids per /tracks call
 SEARCH_LIMIT = 10
 REQUESTS_PER_SECOND = 5
 ATTEMPTS = 3
-MAX_RETRY_AFTER_S = 120  # a longer Spotify back-off fails the batch instead of stalling the run
+MAX_RETRY_AFTER_S = 120  # longer back-offs fail the batch rather than stall the run
 
 
 class SpotifyClient:
-    """Just enough of the Spotify Web API: an app-only token and GETs that
-    refresh it on 401 and honour Retry-After on 429."""
+    """Minimal Spotify Web API client: GETs with an app-only token, refreshed
+    on 401; short 429 back-offs are waited out."""
 
     def __init__(self, client_id, client_secret):
         self._credentials = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
@@ -67,7 +58,7 @@ class SpotifyClient:
     def _access_token(self):
         if self._token is None or time.monotonic() >= self._expires_at:
             request = urllib.request.Request(
-                TOKEN_URL,
+                AUTH_URL,
                 data=b"grant_type=client_credentials",
                 headers={
                     "Authorization": f"Basic {self._credentials}",

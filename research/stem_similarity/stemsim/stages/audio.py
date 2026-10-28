@@ -1,10 +1,8 @@
 """Stage: get every track's audio onto disk (data/audio/<source>/...).
 
 One resolver per Track.audio_source, so a new audio source is one class:
-  deezer  30 s preview, looked up by the ISRC the isrc stage found (the exact
-          recording), else found by artist + title (same matching rules as
-          the app's dedup: same artist, similar title, close duration when
-          known). Waits, without failing, until the isrc stage has run.
+  deezer  30 s preview by ISRC (from the isrc stage), else by artist + title
+          search; waits, without failing, until the isrc stage has run
   pilot   the pilot's previews in research/stem_similarity/audio/ (what was rated)
   mtat    clip extracted from the MagnaTagATune archive (fetched by
           `ingest magnatagatune --with-audio`); waits, without failing, until
@@ -36,12 +34,7 @@ STAGE = config.AUDIO_STAGE
 
 # Search hits further than this from the known duration are another cut
 DURATION_TOLERANCE_S = 12
-# How close durations must be before same_recording accepts a title that only
-# adds plain words ("I Like the Way (The Kissing Game)" vs "I Like The Way").
-# Measured on the pilot's 25 titles that differ from Deezer's: at 2 s it adds
-# 2 right matches and no wrong ones; at 12 s it lets in the acoustic
-# "Unpeeled" cut (3.5 s off) and another version (10.4 s off). Wrong versions
-# can sit at 0 s, so the title rule still has to rule out remix/live/... words.
+# Max duration gap for accepting a title that only adds plain words; 12 s let in an acoustic cut
 EXTRA_WORDS_DURATION_S = 2
 
 NETWORK_ERRORS = (urllib.error.URLError, TimeoutError, json.JSONDecodeError)
@@ -61,7 +54,7 @@ class DeezerResolver:
     def resolve(self, track):
         isrc = self.registry.status(track["track_id"], config.ISRC_STAGE)
         if isrc is None or isrc[0] == FAILED:
-            return None  # wait for `stemsim isrc` - title search alone would miss or mis-pick versions
+            return None  # wait for the isrc stage
         found = json.loads(isrc[1]) if isrc[0] == DONE else {}
         if found.get("isrc"):
             outcome = self._by_isrc(track, found["isrc"])
@@ -71,11 +64,7 @@ class DeezerResolver:
         return self._by_title(track, duration)
 
     def _by_isrc(self, track, isrc):
-        """The Deezer track with this ISRC, or None to fall back to title search.
-
-        Measured on 200 random catalog songs that title search had marked
-        unavailable: 69% got a preview this way, 28% are on Deezer without a
-        preview, 3% aren't there."""
+        """The outcome for the Deezer track with this ISRC, or None to fall back to title search."""
         try:
             hit = json.loads(http_get(f"{self.TRACK_URL}/isrc:{isrc}", limiter=self.limiter))
         except NETWORK_ERRORS as exc:
@@ -84,7 +73,7 @@ class DeezerResolver:
             if hit["error"].get("code") != DEEZER_NO_DATA:
                 return FAILED, f"isrc lookup failed: {hit['error']}", None
             return None
-        # Deezer sometimes returns an empty record (an id, no title) for an ISRC
+        # Deezer can return a stub record (an id, no title)
         if not hit.get("title") or not hit.get("preview") or not isrc_match_plausible(track, hit):
             return None
         return self._download(track, hit, "isrc")
@@ -126,11 +115,8 @@ class DeezerResolver:
 
 
 def isrc_match_plausible(track, hit):
-    """ISRC data has errors: in the 138 ISRC matches of the 200-song sample,
-    "Con Brio - I Wanna" mapped to Kenan Bell's "Above". Rejected only when
-    the title AND the artist both disagree - either alone is common on real
-    matches (romanised titles, renamed artists, collaborations credited to
-    another artist first)."""
+    """Whether an ISRC hit is this track: its artist or its title must match.
+    Requiring both would drop real matches (romanised titles, renamed artists)."""
     want = dedup.normalize_artist(track["artist"] or "")
     names = [hit["artist"]["name"], *(c["name"] for c in hit.get("contributors", []))]
     return any(dedup.normalize_artist(name) == want for name in names) or dedup.titles_similar(
@@ -139,10 +125,8 @@ def isrc_match_plausible(track, hit):
 
 
 def matching_hits(track, duration, hits, title_of, artists_of, duration_of):
-    """Search hits that are this track's recording, best first: same artist,
-    within DURATION_TOLERANCE_S when the duration is known, and
-    same_recording - exact (normalized) title matches before fuzzy ones.
-    Shared by the Deezer title search and the isrc stage's Spotify search."""
+    """Hits by the same artist, within DURATION_TOLERANCE_S of a known
+    duration, that pass same_recording; exact title matches first."""
     want_artist = dedup.normalize_artist(track["artist"])
     wanted = dedup.normalize_title(track["title"])
     candidates = [
@@ -168,11 +152,8 @@ def same_recording(wanted_title, found_title, durations_match=False):
     old fuzzy-only rule accepted ~20 wrong versions (another remix, the live
     cut, the extended mix).
 
-    The one exception: with `durations_match` (within EXTRA_WORDS_DURATION_S),
-    a title that is the other plus plain words is accepted - "C.R.E.A.M."
-    vs "C.R.E.A.M. (Cash Rules Everything Around Me)". Unknown words alone
-    can't tell a subtitle from a version ("(Unpeeled)" is an acoustic album),
-    so this needs the duration."""
+    With `durations_match`, a title that is the other plus plain words also
+    matches ("C.R.E.A.M." vs "C.R.E.A.M. (Cash Rules Everything Around Me)")."""
     wanted, found = dedup.normalize_title(wanted_title), dedup.normalize_title(found_title)
     if wanted == found:
         return True
@@ -185,9 +166,7 @@ def same_recording(wanted_title, found_title, durations_match=False):
 
 
 def _adds_only_plain_words(title_a, title_b):
-    """Whether the titles share a base title and one is the other plus words
-    that don't name a version, in order - "Ibiza (X Vs Y) - Z Remix" vs
-    "Ibiza (Z Remix)" adds "x vs y"."""
+    """Whether one title is the other plus words that don't name a version."""
     if dedup.base_title(title_a) != dedup.base_title(title_b):
         return False
     shorter, longer = sorted((dedup.normalize_title(title_a).split(), dedup.normalize_title(title_b).split()), key=len)
