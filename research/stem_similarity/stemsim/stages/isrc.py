@@ -66,8 +66,13 @@ class SpotifyClient:
                     "User-Agent": config.USER_AGENT,
                 },
             )
-            with urllib.request.urlopen(request, timeout=config.HTTP_TIMEOUT_S) as response:
-                body = json.load(response)
+            try:
+                with urllib.request.urlopen(request, timeout=config.HTTP_TIMEOUT_S) as response:
+                    body = json.load(response)
+            except urllib.error.HTTPError as exc:
+                if exc.code in (400, 401):  # invalid_client: no request can succeed, so stop the run
+                    raise SystemExit(f"Spotify rejected SPOTIPY_CLIENT_ID/SECRET (HTTP {exc.code})") from exc
+                raise
             self._token = body["access_token"]
             self._expires_at = time.monotonic() + body.get("expires_in", 3600) - 60
         return self._token
