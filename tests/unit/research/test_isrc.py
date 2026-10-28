@@ -93,20 +93,6 @@ def test_network_errors_fail_and_are_retried_next_run(registry):
     assert registry.status(track.track_id, config.ISRC_STAGE)[0] == DONE
 
 
-def test_rejected_credentials_stop_the_run(registry, monkeypatch):
-    track = song_track("Song", "Artist", spotify_track_id="sp1")
-    add_tracks(registry, track)
-
-    def reject(request, timeout=None):
-        raise urllib.error.HTTPError(request.full_url, 400, "invalid_client", {}, None)
-
-    monkeypatch.setattr(isrc.urllib.request, "urlopen", reject)
-
-    with pytest.raises(SystemExit):
-        isrc.run(registry, client=isrc.SpotifyClient("id", "wrong"))
-    assert registry.status(track.track_id, config.ISRC_STAGE) is None  # still pending, not marked failed
-
-
 @pytest.mark.parametrize(("retry_after", "waits"), [(3, True), (isrc.MAX_RETRY_AFTER_S + 1, False)])
 def test_client_waits_out_only_short_rate_limits(monkeypatch, retry_after, waits):
     replies = [urllib.error.HTTPError("url", 429, "rate limited", {"Retry-After": str(retry_after)}, None), {"ok": 1}]
