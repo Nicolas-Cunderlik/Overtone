@@ -353,6 +353,17 @@ The listener (project author) rates triplets.
   live, acoustic, extended...) to match exactly. listener_abx keeps the
   pilot's audio regardless - the ratings judged what was actually heard.
 
+  That rule also rejected real matches with extra title words, leaving 7,306
+  tracks unavailable (SSM-26). Audio is now looked up by ISRC first (found on
+  Spotify by stages/isrc.py), with title search as the fallback:
+    pilot (25 differing titles)   ISRC right for 25/25
+    200-song sample               69% recovered; 1 ISRC data error, rejected
+    re-run, spotify_catalog       +3,375 (coverage 81% -> 94%)
+    re-run, dim_sim               +872 (78% -> 86%); 1,412 have no Spotify
+                                  match by name, the main remaining gap
+  Extra plain title words are accepted only within 2 s of the duration
+  (pilot: +2 right, 0 wrong; 12 s let in an acoustic cut).
+
 ======================================================================
 SOURCES
 ======================================================================

@@ -53,13 +53,13 @@ class RateLimiter:
         self._next = max(now, self._next) + self.interval
 
 
-def http_get(url, params=None, limiter=None):
+def http_get(url, params=None, limiter=None, headers=None):
     """GET with the project user agent and timeout; returns the body bytes."""
     if params:
         url = f"{url}?{urllib.parse.urlencode(params)}"
     if limiter:
         limiter.wait()
-    request = urllib.request.Request(url, headers={"User-Agent": config.USER_AGENT})
+    request = urllib.request.Request(url, headers={"User-Agent": config.USER_AGENT, **(headers or {})})
     with urllib.request.urlopen(request, timeout=config.HTTP_TIMEOUT_S) as response:
         return response.read()
 

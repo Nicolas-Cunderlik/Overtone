@@ -5,6 +5,7 @@
   python -m stemsim ingest magnatagatune [--with-audio]
   python -m stemsim ingest ccmsim [--all-cultures]
   python -m stemsim ingest lastfm [--limit 500]      crawl 500 more seeds, then re-normalize
+  python -m stemsim isrc [--dataset lastfm] [--limit 1000]   Spotify ISRCs (Deezer audio waits for these)
   python -m stemsim audio [--source deezer] [--dataset lastfm] [--limit 1000]
   python -m stemsim separate [--dataset dim_sim] [--limit 100]   Demucs stems (GPU)
   python -m stemsim embed [--dataset dim_sim] [--limit 100]      MuQ-MuLan vectors (GPU)
@@ -25,7 +26,7 @@ import sys
 from . import config
 from .datasets import ADAPTERS
 from .registry import Registry
-from .stages import audio, ingest
+from .stages import audio, ingest, isrc
 
 # Perceptual targets first (they gate training/evaluation), the candidate pool last
 PRIORITY = ("listener_abx", "magnatagatune", "ccmsim", "dim_sim", "matcha", "spotify_catalog", "lastfm")
@@ -65,6 +66,9 @@ def main(argv=None):
     p.add_argument("--with-audio", action="store_true", help="magnatagatune: also download the 3.3 GB audio")
     p.add_argument("--all-cultures", action="store_true", help="ccmsim: keep all nine source datasets")
     p.add_argument("--limit", type=int, default=200, help="lastfm: seeds to crawl this run")
+    p = commands.add_parser("isrc", help="Spotify ISRCs for Deezer tracks still without audio")
+    p.add_argument("--dataset", choices=sorted(ADAPTERS))
+    p.add_argument("--limit", type=int)
     p = commands.add_parser("audio", help="fetch/extract audio for pending tracks")
     p.add_argument("--source")
     p.add_argument("--dataset")
@@ -104,6 +108,9 @@ def main(argv=None):
                 limit=args.limit,
                 progress=_progress,
             )
+    elif args.command == "isrc":
+        with registry.exclusive(isrc.STAGE):
+            print(isrc.run(registry, dataset=args.dataset, limit=args.limit))
     elif args.command == "audio":
         # One process per audio source (they'd write the same files); without
         # --source this run touches every source, so it holds all their locks
@@ -130,7 +137,7 @@ def main(argv=None):
         else:
             print(f"Wrote {sessions.write(rows, name)} - rate it with scripts/launch_rating_server.py")
     elif args.command == "status":
-        stages = [config.AUDIO_STAGE, config.SEPARATE_STAGE, config.EMBED_STAGE]
+        stages = [config.ISRC_STAGE, config.AUDIO_STAGE, config.SEPARATE_STAGE, config.EMBED_STAGE]
         print(
             f"{'dataset':16s} {'target':11s} {'tracks':>7s} {'judgm.':>7s} "
             + " ".join(f"{s[:12]:>18s}" for s in stages)
