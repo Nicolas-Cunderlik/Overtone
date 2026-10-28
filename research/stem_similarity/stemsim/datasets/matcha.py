@@ -16,8 +16,9 @@ release materials on acceptance - until then these tracks resolve to
 
 import csv
 
+from ..clients.http import download
 from ..schema import PERCEPTUAL, TRIPLET, TRIPLET_AGREEMENT, Judgment, Membership, NormalizedDataset, Track
-from .base import DatasetAdapter, download
+from .base import DatasetAdapter
 
 BASE_URL = "https://raw.githubusercontent.com/roserbatlleroca/matcha/HEAD"
 CASES = "raw_cases.csv"

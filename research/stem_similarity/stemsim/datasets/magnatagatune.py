@@ -19,8 +19,9 @@ import csv
 import zipfile
 from collections import defaultdict
 
+from ..clients.http import download
 from ..schema import PERCEPTUAL, TRIPLET, TRIPLET_AGREEMENT, Judgment, Membership, NormalizedDataset, Track
-from .base import DatasetAdapter, download
+from .base import DatasetAdapter
 
 BASE_URL = "https://mirg.city.ac.uk/datasets/magnatagatune"
 COMPARISONS = "comparisons_final.csv"

@@ -29,6 +29,7 @@ import shutil
 from .. import config
 from ..rating import ratings
 from ..schema import (
+    MIX,
     OVERALL,
     PERCEPTUAL,
     TRIPLET,
@@ -74,7 +75,7 @@ class ListenerAbx(DatasetAdapter):
                     r["x"],
                     closer,
                     farther,
-                    facet=OVERALL if r["play"] == ratings.MIX else r["play"],
+                    facet=OVERALL if r["play"] == MIX else r["play"],
                     meta={
                         "rater_id": r["rater_id"],
                         "session": r["session"],

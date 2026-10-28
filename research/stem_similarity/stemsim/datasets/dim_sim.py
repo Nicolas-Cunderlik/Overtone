@@ -20,8 +20,9 @@ License: CC BY-NC 4.0 (non-commercial research use).
 import csv
 import tarfile
 
+from ..clients.http import download
 from ..schema import PERCEPTUAL, TRIPLET, TRIPLET_AGREEMENT, Judgment, Membership, NormalizedDataset, song_track
-from .base import DatasetAdapter, download
+from .base import DatasetAdapter
 
 ARCHIVE_URL = "https://zenodo.org/records/3889149/files/dim-sim.tar.gz?download=1"
 MSD_TRACKS_URL = "http://millionsongdataset.com/sites/default/files/AdditionalFiles/unique_tracks.txt"

@@ -44,12 +44,12 @@ from demucs.pretrained import get_model
 
 from .. import config
 from ..registry import DONE, FAILED
+from ..schema import STEMS
 
 logger = logging.getLogger(__name__)
 
 STAGE = config.SEPARATE_STAGE
 REQUIRES = config.AUDIO_STAGE
-STEMS = ("drums", "bass", "vocals", "other")
 STEM_SR = 24_000
 MIN_SECONDS = 1.0
 STEM_FORMAT = {"format": "FLAC", "subtype": "PCM_16"}

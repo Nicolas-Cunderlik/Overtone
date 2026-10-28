@@ -65,11 +65,11 @@ from scipy.stats import spearmanr
 
 from .. import config, tracking
 from ..registry import Registry
+from ..schema import CHANNELS
 from . import report
 
 logger = logging.getLogger(__name__)
 
-CHANNELS = ("mix", "drums", "bass", "vocals", "other")
 SILENT_DB = -45.0
 FIT_SETS = ("dim_sim", "magnatagatune")
 HELD_OUT_TRIPLETS = ("listener_abx",)

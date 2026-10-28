@@ -34,15 +34,15 @@ import torchaudio.functional as AF
 
 from .. import config
 from ..registry import DONE, FAILED
+from ..schema import CHANNELS, STEMS
 from .separate import STAGE as SEPARATE_STAGE
-from .separate import STEM_EXT, STEM_SR, STEMS, get_separator, load_audio, track_hash
+from .separate import STEM_EXT, STEM_SR, get_separator, load_audio, track_hash
 
 logger = logging.getLogger(__name__)
 
 MODEL_KEY = config.EMBED_MODEL
 HF_MODEL = "OpenMuQ/MuQ-MuLan-large"
 STAGE = config.EMBED_STAGE
-CHANNELS = ("mix", *STEMS)
 MIN_WINDOW_S = 1.0
 
 

@@ -36,7 +36,7 @@ import numpy as np
 from .. import config
 from ..datasets.spotify_catalog import SpotifyCatalog
 from ..registry import DONE
-from ..schema import TRIPLET
+from ..schema import MIX, TRIPLET
 from . import ratings
 from .committee import disagreement
 
@@ -221,7 +221,7 @@ def triplet_row(design, split, x, a, b, selection, audio):
         "x": x,
         "a": a,
         "b": b,
-        "play": ratings.MIX,
+        "play": MIX,
         "audio": {clip: audio[t] for clip, t in zip(ratings.CLIPS, (x, a, b), strict=True)},
         "stems": None,
         "window": None,

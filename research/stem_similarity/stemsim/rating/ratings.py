@@ -33,6 +33,7 @@ import hashlib
 import json
 
 from .. import config
+from ..schema import CHANNELS
 
 A, B, TIE, BAD_CLIP = "a", "b", "tie", "bad_clip"
 CHOICES = (A, B, TIE, BAD_CLIP)
@@ -58,8 +59,7 @@ SPLITS = (FIT, VALIDATION)
 VALIDATION_PERCENT = 20
 _SPLIT_SALT = "overtone-split-v1:"  # so the split is independent of the sha1 file paths
 
-MIX = "mix"  # play value: the full mix rather than one stem
-PLAYS = (MIX, "drums", "bass", "vocals", "other")
+PLAYS = CHANNELS  # MIX plays the full mix, a stem plays that stem alone
 VERSION = 2
 
 

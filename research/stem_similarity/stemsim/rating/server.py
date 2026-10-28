@@ -25,6 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from .. import config
+from ..schema import MIX
 from . import dictation, ratings
 
 PAGE = Path(__file__).with_name("rate.html")
@@ -42,7 +43,7 @@ PAGE_CONFIG = {
     "strengths": {"slightly": ratings.SLIGHTLY, "clearly": ratings.CLEARLY},
     "tags": ratings.TAGS,
     "bad_clip_reasons": ratings.BAD_CLIP_REASONS,
-    "mix": ratings.MIX,
+    "mix": MIX,
     "sample_rate": dictation.SAMPLE_RATE,
 }
 
@@ -88,7 +89,7 @@ class Session:
         row = self.by_id.get(row_id)
         if row is None or clip not in ratings.CLIPS:
             return None
-        ref = row["stems"][clip] if row["play"] != ratings.MIX else row["audio"][clip]["ref"]
+        ref = row["stems"][clip] if row["play"] != MIX else row["audio"][clip]["ref"]
         path = self.data_dir / ref.replace("\\", "/")
         return path if path.is_file() else None
 
