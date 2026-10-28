@@ -52,7 +52,7 @@ Use the project venv (`.venv\Scripts\python`), where the package is installed ed
 ## Conventions
 
 - Shared constants have one home: file locations and settings in `config.py` (never relative to the working directory; it handles the PyInstaller frozen case), UI colours and fonts in `ui/theme.py`, ML file locations in `ml/paths.py`. Single-use constants go at the top of their module in UPPER_CASE.
-- Module docstrings explain *why* (design decisions, measured trade-offs, numbers from evaluate.py). Keep them current when behaviour changes, and match the existing comment density.
+- Comments and docstrings state current behaviour, not history. A docstring tells a caller what the code does, takes and returns. A comment covers only what the code can't say: surprising edge cases, quirks (an API that reports errors as HTTP 200), the reason for a design choice, and anything that stops someone from undoing a fix. Keep them short, and accurate when the code changes.
 - snake_case everywhere; `_private` helpers. Qt overrides keep Qt's names (`closeEvent`).
 - Every network call sets a timeout.
 - Dependencies are pinned in `pyproject.toml`: `dependencies` (app) and the `dev` extra (tooling). Add new ones there with exact versions. The research venv has its own `research/stem_similarity/requirements.txt`.
@@ -69,4 +69,5 @@ Use the project venv (`.venv\Scripts\python`), where the package is installed ed
 
 - All tests live under `tests/`. `tests/unit/` mirrors `src/overtone/`: one `test_<module>.py` per module. The research pipeline's (`research/stem_similarity/stemsim`) unit tests are in `tests/unit/research/`. Unit tests must not touch the network, Win32 or trained artifacts. CI runs them on Linux.
 - `tests/integration/` is for anything needing artifacts, Qt event loops or the built exe.
+- Test the behaviour a caller relies on, through the public API, not private helpers or incidental details. Prefer fewer, larger tests built from factories and shared fixtures (`conftest.py`) when that saves setup, and `pytest.mark.parametrize` for input/output tables. Keep each test readable on its own: the values its assertions depend on appear in the test, not hidden in setup.
 - CI (`.github/workflows/ci.yml`) runs pre-commit and the unit tests on every PR and every push to `main`.
