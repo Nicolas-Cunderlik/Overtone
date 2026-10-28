@@ -168,9 +168,13 @@ class Registry:
 
     # --- stage bookkeeping --------------------------------------------------
 
-    def pending(self, stage, audio_source=None, dataset=None, retry_failed=True, limit=None, requires=None):
+    def pending(
+        self, stage, audio_source=None, dataset=None, retry_failed=True, limit=None, requires=None, skip_done=None
+    ):
         """Tracks with no final outcome for `stage` yet - and, with `requires`,
-        only those whose `requires` stage is done (its output is the input)."""
+        only those whose `requires` stage is done (its output is the input);
+        with `skip_done`, not those whose `skip_done` stage is already done
+        (`stage` only helps that one)."""
         final = (DONE, UNAVAILABLE) if retry_failed else (DONE, UNAVAILABLE, FAILED)
         placeholders = ",".join("?" * len(final))
         sql = f"""SELECT t.* FROM tracks t
@@ -181,6 +185,10 @@ class Registry:
             sql += """ AND EXISTS (SELECT 1 FROM stage_status r WHERE r.track_id = t.track_id
                                    AND r.stage = ? AND r.state = 'done')"""
             args.append(requires)
+        if skip_done:
+            sql += """ AND NOT EXISTS (SELECT 1 FROM stage_status d WHERE d.track_id = t.track_id
+                                       AND d.stage = ? AND d.state = 'done')"""
+            args.append(skip_done)
         if audio_source:
             sql += " AND t.audio_source = ?"
             args.append(audio_source)
@@ -203,6 +211,13 @@ class Registry:
         if row is None or row["artifact"] is None:
             return None
         return self.data_dir / Path(row["artifact"].replace("\\", "/")), row["detail"]
+
+    def status(self, track_id, stage):
+        """(state, detail) of a track's outcome for `stage`, or None if the stage hasn't run on it."""
+        row = self.conn.execute(
+            "SELECT state, detail FROM stage_status WHERE track_id = ? AND stage = ?", (track_id, stage)
+        ).fetchone()
+        return None if row is None else (row["state"], row["detail"])
 
     def keeps_stems(self, dataset):
         """Stems stay on disk for perceptual datasets (see stages/separate.py)."""

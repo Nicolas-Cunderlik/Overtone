@@ -14,6 +14,7 @@ HTTP_TIMEOUT_S = 30
 
 # Stage names in the registry's stage_status. Kept here, not in the stage
 # modules, so reading results doesn't import torch.
+ISRC_STAGE = "isrc"
 AUDIO_STAGE = "audio"
 SEPARATE_STAGE = "separate"
 EMBED_MODEL = "muq-mulan-large"

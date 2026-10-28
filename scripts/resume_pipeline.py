@@ -2,7 +2,7 @@
 
     python scripts/resume_pipeline.py            downloads + GPU stages
     python scripts/resume_pipeline.py --gpu      only separate -> embed
-    python scripts/resume_pipeline.py --audio    only audio downloads
+    python scripts/resume_pipeline.py --audio    only ISRC lookups -> audio downloads
     python scripts/resume_pipeline.py --dry-run  show what would start
 
 Every stage resumes where it stopped and holds a lock, so this is safe to run
@@ -19,7 +19,8 @@ from _common import LOG_DIR, RESEARCH, RESEARCH_VENV, running_stages, venv_pytho
 
 # job name -> (lock names it would hold, stemsim commands run one after another)
 JOBS = {
-    "audio": (["audio-deezer"], [["audio", "--source", "deezer"]]),
+    # Deezer audio waits for each track's ISRC lookup, so the two run in order
+    "audio": (["isrc", "audio-deezer"], [["isrc"], ["audio", "--source", "deezer"]]),
     "gpu": (["separate", "embed-muq-mulan-large"], [["separate"], ["embed"]]),
 }
 

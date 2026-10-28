@@ -33,6 +33,19 @@ def test_ingest_is_idempotent_and_shared_tracks_merge(registry):
     assert db.execute("SELECT title FROM tracks WHERE track_id = ?", (shared.track_id,)).fetchone()[0] == "X"
 
 
+def test_status_and_skip_done(registry):
+    tracks = [Track(f"mtat:{i}", "mtat") for i in range(2)]
+    registry.replace_dataset(
+        FakeAdapter("one"), NormalizedDataset(tracks=tracks, members=[Membership(t.track_id, "") for t in tracks])
+    )
+    registry.set_status("mtat:0", "audio", DONE, artifact="x.mp3")
+    registry.set_status("mtat:1", "isrc", "unavailable", "no match")
+
+    assert registry.status("mtat:0", "isrc") is None
+    assert registry.status("mtat:1", "isrc") == ("unavailable", "no match")
+    assert [t["track_id"] for t in registry.pending("lookup", skip_done="audio")] == ["mtat:1"]
+
+
 def test_pending_skips_finished_tracks(registry):
     tracks = [Track(f"mtat:{i}", "mtat") for i in range(3)]
     registry.replace_dataset(

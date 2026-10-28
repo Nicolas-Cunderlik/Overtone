@@ -353,6 +353,29 @@ The listener (project author) rates triplets.
   live, acoustic, extended...) to match exactly. listener_abx keeps the
   pilot's audio regardless - the ratings judged what was actually heard.
 
+  That strict rule also rejected real matches whose titles carry extra words
+  ("C.R.E.A.M." vs "C.R.E.A.M. (Cash Rules Everything Around Me)"), leaving
+  7,306 Deezer-bound tracks unavailable (SSM-26). The fix looks recordings up
+  by ISRC first (stages/isrc.py finds it on Spotify; audio fetches Deezer's
+  track for it):
+    pilot, 25 titles that differ from Deezer's   ISRC led to the right
+                                                 recording for 25 (23 with
+                                                 a preview)
+    200 random unavailable catalog songs         69% recovered, 28% on Deezer
+                                                 without a preview, 3% absent;
+                                                 1 of 138 matches an ISRC data
+                                                 error (title and artist both
+                                                 differ - now rejected)
+  Title search remains the fallback and accepts extra plain words only when
+  durations agree within 2 s (+2 right, 0 wrong on the pilot's 25). The
+  2,386 dim_sim tracks have no Spotify id or duration, so the isrc stage
+  searches Spotify by name for them. Full re-run of the 7,306:
+    spotify_catalog   3,375 of 4,921 recovered (3,326 by ISRC, 49 by title);
+                      coverage 81% -> 94% (24,050 of 25,596)
+    dim_sim           872 of 2,402 recovered (868 by ISRC, 4 by title);
+                      coverage 78% -> 86% (9,151 of 10,681) - 1,412 found no
+                      Spotify match by name, the main remaining gap
+
 ======================================================================
 SOURCES
 ======================================================================
