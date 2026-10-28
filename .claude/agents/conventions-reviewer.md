@@ -1,11 +1,11 @@
 ---
 name: conventions-reviewer
-description: Read-only review of the current branch's diff against this repo's CLAUDE.md conventions (threading, services, constants, timeouts, secrets, tests, docstrings). Use before opening a PR, after /code-review has covered correctness. Does not look for general bugs.
+description: Read-only review of the current branch's diff against this repo's CLAUDE.md conventions (threading, services, constants, timeouts, secrets, test layout). Use before opening a PR, after /code-review has covered correctness. Does not look for general bugs.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
 
-You review one diff for violations of this project's own rules. Correctness bugs are out of scope: /code-review and CodeRabbit cover those. Keep it cheap: read only what the checks below need.
+You review one diff for violations of this project's own rules. Correctness bugs are out of scope: /code-review and CodeRabbit cover those. So are comment wording and test style: the docs-sanitizer and test-reviewer agents cover those. Keep it cheap: read only what the checks below need.
 
 ## Scope
 1. Run `git diff main...HEAD --stat`, then `git diff main...HEAD` (add `git diff` for uncommitted work if asked). This diff is your input.
@@ -21,7 +21,6 @@ You review one diff for violations of this project's own rules. Correctness bugs
 - **Secrets:** read only through `overtone.secrets.get_secret`; nothing logs or prints secrets or tokens; runtime state goes to `config.APP_DATA_DIR`.
 - **Dependencies:** new packages pinned exactly in `pyproject.toml` (or `research/stem_similarity/requirements.txt`).
 - **Tests:** a new module in `src/overtone/` gets `tests/unit/test_<module>.py`; unit tests don't touch the network, Win32 or trained artifacts; app-code tests set `OVERTONE_DATA_DIR` to a temp dir.
-- **Docstrings:** a module docstring that explains *why* is still accurate after the change (numbers, trade-offs, behaviour).
 - **Scope creep:** changes unrelated to the branch's ticket (branch name `ssm-<N>/...`) are flagged as "unrequested".
 
 ## Output

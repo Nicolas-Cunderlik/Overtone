@@ -1,8 +1,9 @@
-"""stemsim.rating.committee on small synthetic pools - no registry, no embeddings on disk."""
+"""stemsim.rating.committee on small synthetic pools and a temp registry - no embeddings on disk."""
 
 import numpy as np
 import pytest
 from stemsim.rating import committee
+from stemsim.schema import Track
 
 CHANNELS = 5  # mix, drums, bass, vocals, other
 D = 4
@@ -96,3 +97,17 @@ def test_top_k_per_model(pool):
     assert set(top["mix"]) == {1, 3}  # a and c share x's mix
     assert set(top["fitted"]) == {2, 3}  # b and c share x's stems
     assert "app" not in top
+
+
+def test_load_pool_keeps_registry_tracks_that_have_embeddings(registry, add_dataset):
+    add_dataset("catalog", [Track("s1", "deezer", artist="The Band"), Track("s2", "deezer"), Track("s3", "deezer")])
+    vector = (np.ones((CHANNELS, D), np.float32), np.ones(CHANNELS, bool))
+    vectors = {"s1": vector, "s3": vector, "unknown": vector}  # s2: no embedding; unknown: not in the registry
+
+    pool = committee.load_pool(registry, ["s1", "s2", "unknown", "s3"], vectors, with_app=False)
+
+    assert pool.ids == ["s1", "s3"]
+    assert pool.emb.shape == (CHANNELS, 2, D)
+    assert list(pool.artists) == ["band", ""]  # normalized; a missing artist becomes ""
+    with pytest.raises(ValueError):
+        committee.load_pool(registry, ["s2"], vectors, with_app=False)

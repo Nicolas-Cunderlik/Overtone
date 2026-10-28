@@ -200,12 +200,6 @@ def row_correctness(scores):
     return c.mean(0) if c.ndim == 2 else c
 
 
-def triple_groups(rows):
-    """Group id per row: rows over the same three songs share one. (The rating
-    committee's bootstrap; this experiment groups by song, see song_groups.)"""
-    return pd.factorize(pd.Series(["|".join(sorted(t for t in (r["a"], r["b"], r["c"]) if t)) for r in rows]))[0]
-
-
 def song_groups(rows):
     """Group id per row: rows linked by shared songs, directly or through a
     chain, share one - so splitting by group never puts a song on both sides."""
