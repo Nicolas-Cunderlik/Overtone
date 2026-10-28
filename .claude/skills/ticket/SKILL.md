@@ -16,8 +16,8 @@ Jira site: nicolascunderlik.atlassian.net, project `SSM`. The owner steers: prop
 ## Finish: `finish`
 1. `python scripts/run_checks.py`, then `.venv\Scripts\pyright src`. Fix only failures this branch introduced; report the rest.
 2. Clean up, then review, in this order, each on demand (they cost tokens). Commit the branch's work first, so the cleanup agents' edits show up as their own diff.
-   - The `docs-sanitizer` agent rewrites the diff's comments and docstrings.
    - The `test-reviewer` agent restructures and prunes the diff's tests, and reports missing tests and bugs.
+   - The `docs-sanitizer` agent rewrites the diff's comments and docstrings, including any test-reviewer wrote.
    The owner reviews these edits (`git diff`) before they are committed.
    - `/code-review` at the level the owner prefers (default: low) for correctness.
    - The `conventions-reviewer` agent for project rules.

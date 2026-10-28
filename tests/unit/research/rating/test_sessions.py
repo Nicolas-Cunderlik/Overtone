@@ -48,15 +48,17 @@ def check_rules(picker, triplets, split):
         assert artist[x] not in (artist[a], artist[b]) and artist[a] != artist[b]
 
 
-def test_neighbourhood_triplets_follow_the_rules(pool, comm):
+def test_neighbourhood_triplets_follow_the_rules(pool, comm, monkeypatch):
+    monkeypatch.setattr(sessions, "NEIGHBOURS", 2)  # below the candidate count, so the top lists select
     picker = sessions.Picker(pool, comm, split_of, np.random.default_rng(1))
     fit = picker.neighbourhood_triplets(ratings.FIT, 3)
     val = picker.neighbourhood_triplets(ratings.VALIDATION, 3)
     assert len(fit) == len(val) == 3
     check_rules(picker, fit, ratings.FIT)
     check_rules(picker, val, ratings.VALIDATION)
-    for *_, sel in fit + val:  # A and B each come from some model's top neighbours
-        assert sel["rule"] == ratings.NEIGHBOURHOOD and sel["in_top"]["a"] and sel["in_top"]["b"]
+    x, a, b = (pool.ids.index(t) for t in fit[0][:3])  # the first pick, made while every fit song was free
+    others = [i for i in range(40) if pool.artists[i] != pool.artists[x]]
+    assert {a, b} <= {int(i) for rows in comm.top_k(comm.scores(pool, x), others, 2).values() for i in rows}
 
 
 def test_contested_triplets_are_the_most_even_splits(pool, comm):
