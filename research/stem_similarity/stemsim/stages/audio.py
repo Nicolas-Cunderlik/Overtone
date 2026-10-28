@@ -24,7 +24,7 @@ import zipfile
 from overtone.ml import dedup
 
 from .. import config
-from ..datasets.base import RateLimiter, download, http_get
+from ..clients.http import NETWORK_ERRORS, RateLimiter, download, http_get
 from ..datasets.magnatagatune import archive_path
 from ..registry import DONE, FAILED, UNAVAILABLE
 
@@ -37,7 +37,6 @@ DURATION_TOLERANCE_S = 12
 # Max duration gap for accepting a title that only adds plain words; 12 s let in an acoustic cut
 EXTRA_WORDS_DURATION_S = 2
 
-NETWORK_ERRORS = (urllib.error.URLError, TimeoutError, json.JSONDecodeError)
 DEEZER_NO_DATA = 800  # Deezer's error code for "not found"; others (e.g. 4, quota) are transient
 
 

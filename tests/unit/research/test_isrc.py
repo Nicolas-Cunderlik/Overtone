@@ -1,7 +1,6 @@
 import json
 import urllib.error
 
-import pytest
 from stemsim import config
 from stemsim.registry import DONE, FAILED, UNAVAILABLE
 from stemsim.schema import Membership, NormalizedDataset, song_track
@@ -47,7 +46,7 @@ class FakeSpotify:
 
 
 def test_looks_up_ids_in_batches_and_searches_the_rest(registry, monkeypatch):
-    monkeypatch.setattr(isrc, "BATCH_SIZE", 2)
+    monkeypatch.setattr(isrc, "MAX_IDS_PER_REQUEST", 2)
     by_id = [song_track(f"Song {i}", "Artist", spotify_track_id=f"sp{i}") for i in range(3)]
     no_isrc = song_track("Gone", "Artist", spotify_track_id="gone")
     no_id = song_track("Hit", "Artist")
@@ -91,28 +90,3 @@ def test_network_errors_fail_and_are_retried_next_run(registry):
 
     isrc.run(registry, client=FakeSpotify([spotify_track("sp1", "Song")]))
     assert registry.status(track.track_id, config.ISRC_STAGE)[0] == DONE
-
-
-@pytest.mark.parametrize(("retry_after", "waits"), [(3, True), (isrc.MAX_RETRY_AFTER_S + 1, False)])
-def test_client_waits_out_only_short_rate_limits(monkeypatch, retry_after, waits):
-    replies = [urllib.error.HTTPError("url", 429, "rate limited", {"Retry-After": str(retry_after)}, None), {"ok": 1}]
-    slept = []
-
-    def http_get(url, params=None, limiter=None, headers=None):
-        reply = replies.pop(0)
-        if isinstance(reply, Exception):
-            raise reply
-        return json.dumps(reply)
-
-    monkeypatch.setattr(isrc, "http_get", http_get)
-    monkeypatch.setattr(isrc.time, "sleep", slept.append)
-    client = isrc.SpotifyClient("id", "secret")
-    monkeypatch.setattr(client, "_access_token", lambda: "token")
-
-    if waits:
-        assert client.get("tracks", {}) == {"ok": 1}
-        assert slept == [retry_after]
-    else:
-        with pytest.raises(urllib.error.HTTPError):
-            client.get("tracks", {})
-        assert slept == []

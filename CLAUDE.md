@@ -51,7 +51,8 @@ Use the project venv (`.venv\Scripts\python`), where the package is installed ed
 
 ## Conventions
 
-- Shared constants have one home: file locations and settings in `config.py` (never relative to the working directory; it handles the PyInstaller frozen case), UI colours and fonts in `ui/theme.py`, ML file locations in `ml/paths.py`. Single-use constants go at the top of their module in UPPER_CASE.
+- Shared constants have one home: file locations and settings in `config.py` (never relative to the working directory; it handles the PyInstaller frozen case), UI colours and fonts in `ui/theme.py`, ML file locations in `ml/paths.py`, the research stem/channel order in `stemsim/schema.py` (`STEMS`, `CHANNELS`). Single-use constants go at the top of their module in UPPER_CASE.
+- An external service used by more than one module gets a client in `stemsim/clients/` (e.g. `spotify.py`) that owns its endpoints, rate limits, error codes and retries; shared HTTP plumbing is `clients/http.py`. A service with one user keeps these at the top of that module (Deezer in `stages/audio.py`, Last.fm in `datasets/lastfm.py`) until a second user appears.
 - Comments and docstrings state current behaviour, not history. A docstring tells a caller what the code does, takes and returns. A comment covers only what the code can't say: surprising edge cases, quirks (an API that reports errors as HTTP 200), the reason for a design choice, and anything that stops someone from undoing a fix. Keep them short, and accurate when the code changes.
 - snake_case everywhere; `_private` helpers. Qt overrides keep Qt's names (`closeEvent`).
 - Every network call sets a timeout.

@@ -20,13 +20,13 @@ import hashlib
 import json
 import logging
 import time
-import urllib.error
 
 from overtone.ml import dedup
 from overtone.secrets import get_secret
 
+from ..clients.http import NETWORK_ERRORS, RateLimiter, http_get
 from ..schema import BEHAVIORAL, NDCG, PAIR, Judgment, Membership, NormalizedDataset, song_track, song_track_id
-from .base import DatasetAdapter, RateLimiter, http_get, write_json_atomic
+from .base import DatasetAdapter, write_json_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,8 @@ REQUESTS_PER_SECOND = 4
 SIMILAR_PER_SEED = 50
 # Last.fm error codes (https://www.last.fm/api/errorcodes)
 NOT_FOUND = 6
-RETRY_LATER = {8, 11, 16, 29}  # operation failed / offline / temporary / rate limited
+RATE_LIMITED = 29
+RETRY_LATER = {8, 11, 16, RATE_LIMITED}  # operation failed / offline / temporary / rate limited
 FATAL = {4, 9, 10, 26}  # auth failed / bad session / invalid key / suspended key
 MAX_CONSECUTIVE_FAILURES = 10
 
@@ -87,7 +88,7 @@ class LastFm(DatasetAdapter):
                 logger.warning("Last.fm error %s for %s: %s", error, seed["track_id"], body.get("message"))
                 if failures >= MAX_CONSECUTIVE_FAILURES:
                     raise RuntimeError("Too many consecutive Last.fm failures - stopping; re-run later")
-                if error == 29:
+                if error == RATE_LIMITED:
                     time.sleep(60)
                 continue  # not cached, so it's retried next run
             failures = 0
@@ -119,7 +120,7 @@ class LastFm(DatasetAdapter):
         }
         try:
             return json.loads(http_get(API_URL, params, limiter))
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        except NETWORK_ERRORS as exc:
             return {"error": getattr(exc, "code", -1), "message": str(exc)}
 
     def normalize(self, registry):

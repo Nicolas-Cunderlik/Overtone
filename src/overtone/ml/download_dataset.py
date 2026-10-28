@@ -16,10 +16,11 @@ import requests
 from .paths import CSV_PATH, DATA_DIR
 
 URL = "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-21/spotify_songs.csv"
+TIMEOUT_S = 30
 
 
 def download():
-    resp = requests.get(URL, timeout=30)
+    resp = requests.get(URL, timeout=TIMEOUT_S)
     resp.raise_for_status()
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(CSV_PATH, "wb") as f:

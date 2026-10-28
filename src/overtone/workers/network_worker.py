@@ -11,6 +11,8 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 logger = logging.getLogger(__name__)
 
+ALBUM_ART_TIMEOUT_S = 8
+
 
 class FetchDataWorker(QThread):
     album_bytes = pyqtSignal(bytes)
@@ -32,7 +34,7 @@ class FetchDataWorker(QThread):
             # Album art
             try:
                 album_cover_url = self.track['album']['images'][0]['url']
-                resp = requests.get(album_cover_url, timeout=8)
+                resp = requests.get(album_cover_url, timeout=ALBUM_ART_TIMEOUT_S)
                 resp.raise_for_status()
                 self.album_bytes.emit(resp.content)
             except Exception:
