@@ -1,10 +1,13 @@
-"""stemsim.rating.sessions' selection rules on a synthetic pool - no registry, no embeddings on disk."""
+"""stemsim.rating.sessions: selection rules on a synthetic pool, and history and candidate lookups on
+temp files and a temp registry - no embeddings on disk."""
 
+import json
 import random
 
 import numpy as np
 import pytest
 from stemsim.rating import committee, ratings, sessions
+from stemsim.schema import TRIPLET, Judgment, Track
 
 CHANNELS, D, N = 5, 8, 60
 
@@ -52,7 +55,8 @@ def test_neighbourhood_triplets_follow_the_rules(pool, comm):
     assert len(fit) == len(val) == 3
     check_rules(picker, fit, ratings.FIT)
     check_rules(picker, val, ratings.VALIDATION)
-    assert fit[0][3]["rule"] == "neighbourhood" and set(fit[0][3]["in_top"]) == {"a", "b"}
+    for *_, sel in fit + val:  # A and B each come from some model's top neighbours
+        assert sel["rule"] == ratings.NEIGHBOURHOOD and sel["in_top"]["a"] and sel["in_top"]["b"]
 
 
 def test_contested_triplets_are_the_most_even_splits(pool, comm):
@@ -131,3 +135,39 @@ def test_session_names_count_up_per_rater(tmp_path):
     (tmp_path / "nicolas-001.jsonl").write_text("", encoding="utf-8")
     (tmp_path / "rater2-001.jsonl").write_text("", encoding="utf-8")
     assert sessions.session_name("nicolas", tmp_path) == "nicolas-002"
+
+
+def write_jsonl(path, rows):
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+
+def test_rater_history_has_own_ratings_and_sessions_and_everyones_flags(tmp_path):
+    ratings_path, sessions_dir = tmp_path / "ratings.jsonl", tmp_path / "sessions"
+    sessions_dir.mkdir()
+    mine = {"rater_id": "me", "x": "x1", "a": "a1", "b": "b1", "choice": "a"}
+    flag = {"rater_id": "other", "x": "x2", "a": "a2", "b": "b2", "choice": "bad_clip"}
+    flag["bad_clip"] = {"clips": ["a"], "reason": "silence"}
+    write_jsonl(ratings_path, [mine, flag])
+    write_jsonl(sessions_dir / "me-001.jsonl", [{"x": "x3", "a": "a3", "b": "b3"}])  # given, not yet rated
+    write_jsonl(sessions_dir / "other-001.jsonl", [{"x": "x4", "a": "a4", "b": "b4"}])
+
+    rated, seen, flagged = sessions.rater_history("me", ratings_path, sessions_dir)
+
+    assert rated == [mine]
+    assert seen == {sessions.seen_key("x1", "a1", "b1"), sessions.seen_key("x3", "a3", "b3")}
+    assert flagged == {"a2"}  # another rater's flag still excludes the track
+
+
+def test_shared_candidates_need_audio_for_all_three_and_clean_dim_sim(registry, add_dataset):
+    tracks = [Track(t, "deezer") for t in "xabd"]
+    add_dataset(
+        "dim_sim", tracks, [Judgment(TRIPLET, "x", "a", "b", meta={"clean": True}), Judgment(TRIPLET, "x", "b", "a")]
+    )
+    add_dataset("magnatagatune", tracks, [Judgment(TRIPLET, "x", "a", "b"), Judgment(TRIPLET, "x", "a", "d")])
+
+    found = sessions.shared_candidates(registry, audio=dict.fromkeys("xab"))
+
+    assert [(dataset, a, b, c) for dataset, _, a, b, c, _, _ in found] == [
+        ("dim_sim", "x", "a", "b"),  # the unclean DIM-SIM triplet is left out
+        ("magnatagatune", "x", "a", "b"),  # d has no audio
+    ]
