@@ -13,7 +13,7 @@ to stdout.
 import os
 import sys
 
-from _common import RESEARCH, RESEARCH_VENV, run, venv_python
+from _common import RESEARCH, run, venv_python
 
 
 def main():
@@ -28,7 +28,7 @@ def main():
         "MLFLOW_MCP_TOOLS": "experiments,runs",
         "MLFLOW_DISABLE_AGENT_HINT": "1",
     }
-    return run([venv_python(RESEARCH_VENV), "-m", "mlflow", "mcp", "run"], cwd=RESEARCH, env=env)
+    return run([venv_python(), "-m", "mlflow", "mcp", "run"], cwd=RESEARCH, env=env)
 
 
 if __name__ == "__main__":

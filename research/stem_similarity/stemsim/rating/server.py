@@ -24,8 +24,9 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from overtone_core.ml.stems import MIX
+
 from .. import config
-from ..schema import MIX
 from . import dictation, ratings
 
 PAGE = Path(__file__).with_name("rate.html")

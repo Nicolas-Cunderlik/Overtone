@@ -1,9 +1,5 @@
 """Spotify Web API client with app-only auth (client credentials), so the
-app's user token is never touched.
-
-Depends only on `clients.http`, `config` and the app's secrets, so the app can
-reuse it without pulling in the pipeline.
-"""
+app's user token is never touched."""
 
 import base64
 import json
@@ -12,9 +8,8 @@ import time
 import urllib.error
 import urllib.request
 
-from overtone.secrets import get_secret
-
 from .. import config
+from ..secrets import get_secret
 from .http import RateLimiter, http_get
 
 logger = logging.getLogger(__name__)

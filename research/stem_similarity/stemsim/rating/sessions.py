@@ -32,11 +32,12 @@ import logging
 import random
 
 import numpy as np
+from overtone_core.ml.stems import MIX
 
 from .. import config
 from ..datasets.spotify_catalog import SpotifyCatalog
 from ..registry import DONE
-from ..schema import MIX, TRIPLET
+from ..schema import TRIPLET
 from . import ratings
 from .committee import disagreement
 

@@ -1,14 +1,8 @@
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
-# stemsim is a research package, not installed - import it from its folder
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "research" / "stem_similarity"))
-
-from stemsim.registry import Registry  # noqa: E402
-from stemsim.schema import Membership, NormalizedDataset  # noqa: E402
+from stemsim.registry import Registry
+from stemsim.schema import Membership, NormalizedDataset
 
 
 @pytest.fixture

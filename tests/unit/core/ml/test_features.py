@@ -1,8 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-
-from overtone.ml import features
+from overtone_core.ml import features
 
 
 def key_points(keys):

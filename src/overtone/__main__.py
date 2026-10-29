@@ -18,7 +18,7 @@ def self_test():
     """Imports the whole app (done above), then loads the bundled similarity
     model and runs one lookup - enough to catch a broken build or missing
     artifacts without touching Spotify or showing a window."""
-    from overtone.ml.similarity_model import SimilarityModel
+    from overtone_core.ml.similarity_model import SimilarityModel
 
     model = SimilarityModel()
     results = model.find_similar(model.track_ids[0], k=3)

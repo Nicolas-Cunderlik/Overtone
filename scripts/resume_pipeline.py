@@ -15,7 +15,7 @@ import argparse
 import subprocess
 import sys
 
-from _common import LOG_DIR, RESEARCH, RESEARCH_VENV, running_stages, venv_python
+from _common import LOG_DIR, RESEARCH, running_stages, venv_python
 
 # job name -> (lock names it would hold, stemsim commands run one after another)
 JOBS = {
@@ -27,7 +27,7 @@ JOBS = {
 
 def run_chain(commands):
     """Foreground: runs stemsim commands in order (used by the detached job)."""
-    python = venv_python(RESEARCH_VENV)
+    python = venv_python()
     for command in commands:
         code = subprocess.call([python, "-u", "-m", "stemsim", *command], cwd=RESEARCH)  # noqa: S603
         if code:

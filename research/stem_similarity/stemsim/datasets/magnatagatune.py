@@ -19,7 +19,8 @@ import csv
 import zipfile
 from collections import defaultdict
 
-from ..clients.http import download
+from overtone_core.clients.http import download
+
 from ..schema import PERCEPTUAL, TRIPLET, TRIPLET_AGREEMENT, Judgment, Membership, NormalizedDataset, Track
 from .base import DatasetAdapter
 

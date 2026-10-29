@@ -26,10 +26,12 @@ Tracks are what the listener heard (each row records it):
 import csv
 import shutil
 
+from overtone_core import matching
+from overtone_core.ml.stems import MIX
+
 from .. import config
 from ..rating import ratings
 from ..schema import (
-    MIX,
     OVERALL,
     PERCEPTUAL,
     TRIPLET,
@@ -122,7 +124,6 @@ def _pilot_songs(raw):
 
 
 def _pilot_track(track_id, ref, songs):
-    from ..stages.audio import same_recording  # stages import datasets; avoid a cycle at import time
 
     song = songs[track_id.split(":", 1)[1]]
     return Track(
@@ -134,6 +135,6 @@ def _pilot_track(track_id, ref, songs):
         meta={
             "catalog_track": song_track_id(song["track_name"], song["track_artist"]),
             "deezer_title": song["deezer_title"],
-            "version_differs": not same_recording(song["track_name"], song["deezer_title"]),
+            "version_differs": not matching.same_recording(song["track_name"], song["deezer_title"]),
         },
     )

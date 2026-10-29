@@ -3,7 +3,7 @@ song-similarity NearestNeighbors index over it for the full track catalog, and
 writes both as the next feature-knn version (models/feature-knn/vN/). The app
 loads the version pinned in paths.py, so move the pin to use a new build.
 
-Run: python -m overtone.ml.train
+Run: python -m overtone_core.ml.train
 """
 
 import os

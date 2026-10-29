@@ -18,7 +18,7 @@ You review one diff for violations of this project's own rules. Correctness bugs
 - **Docking:** no direct `window.show()`.
 - **Network:** every request sets a timeout.
 - **Constants:** file locations and settings in `config.py`, UI colours and fonts in `ui/theme.py`, ML file locations in `ml/paths.py`; single-use constants in UPPER_CASE at the top of their module; nothing relative to the working directory.
-- **Secrets:** read only through `overtone.secrets.get_secret`; nothing logs or prints secrets or tokens; runtime state goes to `config.APP_DATA_DIR`.
+- **Secrets:** read only through `overtone_core.secrets.get_secret`; nothing logs or prints secrets or tokens; runtime state goes to `config.APP_DATA_DIR`.
 - **Dependencies:** new packages pinned exactly in `pyproject.toml` (or `research/stem_similarity/requirements.txt`).
 - **Tests:** a new module in `src/overtone/` gets `tests/unit/test_<module>.py`; unit tests don't touch the network, Win32 or trained artifacts; app-code tests set `OVERTONE_DATA_DIR` to a temp dir.
 - **Scope creep:** changes unrelated to the branch's ticket (branch name `ssm-<N>/...`) are flagged as "unrequested".

@@ -1,31 +1,25 @@
-"""Shared helpers for the utility scripts: repo paths, venv interpreters, and
+"""Shared helpers for the utility scripts: repo paths, the venv interpreter, and
 whether a pipeline stage is running. Standard library only, so any Python
-can run the scripts - each one hands real work to the right venv."""
+can run the scripts - each one hands real work to the repo's venv."""
 
 import subprocess
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-APP_VENV = REPO / ".venv"
+VENV = REPO / ".venv"  # one environment for the app and the research pipeline (uv sync)
 RESEARCH = REPO / "research" / "stem_similarity"
-RESEARCH_VENV = RESEARCH / ".venv"
 RESEARCH_DATA = RESEARCH / "data"
 LOCK_DIR = RESEARCH_DATA / "locks"
 LOG_DIR = RESEARCH_DATA / "logs"
 
 
-def venv_python(venv):
-    """The interpreter inside `venv`, or exit with a setup hint if it's missing."""
-    for candidate in (venv / "Scripts" / "python.exe", venv / "bin" / "python"):
+def venv_python():
+    """The interpreter inside the repo's venv, or exit with a setup hint if it's missing."""
+    for candidate in (VENV / "Scripts" / "python.exe", VENV / "bin" / "python"):
         if candidate.exists():
             return str(candidate)
-    hint = (
-        'python -m venv .venv && .venv\\Scripts\\pip install -e ".[dev]"'
-        if venv == APP_VENV
-        else "see research/stem_similarity/requirements.txt"
-    )
-    sys.exit(f"No virtualenv at {venv} - create it first ({hint})")
+    sys.exit(f"No virtualenv at {VENV} - create it first (uv sync)")
 
 
 def run(args, cwd=REPO, env=None):

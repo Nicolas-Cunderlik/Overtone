@@ -2,7 +2,7 @@
 
     python scripts/launch_mlflow.py [--port 5000] [--no-browser]
 
-Runs `mlflow ui` from the research venv against research/stem_similarity/data/mlflow.db
+Runs `mlflow ui` from the repo venv against research/stem_similarity/data/mlflow.db
 (the store stemsim.tracking writes to). Ctrl+C stops it.
 """
 
@@ -11,7 +11,7 @@ import os
 import threading
 import webbrowser
 
-from _common import RESEARCH, RESEARCH_DATA, RESEARCH_VENV, run, venv_python
+from _common import RESEARCH, RESEARCH_DATA, run, venv_python
 
 
 def main():
@@ -33,7 +33,7 @@ def main():
     print(f"MLflow UI on {url} (Ctrl+C to stop)")
     env = {**os.environ, "MLFLOW_DISABLE_AGENT_HINT": "1"}
     command = [
-        venv_python(RESEARCH_VENV),
+        venv_python(),
         "-m",
         "mlflow",
         "ui",

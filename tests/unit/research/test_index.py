@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
 import pytest
+from overtone_core.ml import model_store
+from overtone_core.ml.stems import CHANNELS
 from stemsim import config, index
 from stemsim.registry import DONE, FAILED
-from stemsim.schema import CHANNELS, song_track
-
-from overtone.ml import model_store
+from stemsim.schema import song_track
 
 WEIGHTS = {
     "final": {"mix": 0.5, "drums": 0.1, "bass": 0.1, "vocals": 0.1, "other": 0.2},

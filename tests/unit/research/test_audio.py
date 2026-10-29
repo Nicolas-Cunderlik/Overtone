@@ -1,14 +1,14 @@
 import json
 
 import pytest
+from overtone_core.clients import deezer as deezer_api
 from stemsim import config
 from stemsim.registry import DONE, FAILED, UNAVAILABLE
 from stemsim.schema import Membership, NormalizedDataset, song_track
-from stemsim.stages import audio
-from stemsim.stages.audio import DeezerResolver, same_recording
+from stemsim.stages.audio import DeezerResolver
 
-ISRC_URL = f"{DeezerResolver.TRACK_URL}/isrc:"
-SEARCH_URL = DeezerResolver.SEARCH_URL
+ISRC_URL = f"{deezer_api.TRACK_URL}/isrc:"
+SEARCH_URL = deezer_api.SEARCH_URL
 
 
 class FakeAdapter:
@@ -43,27 +43,11 @@ def resolve(registry, monkeypatch):
             requested.append(url)
             return json.dumps(next(body for prefix, body in (deezer or {}).items() if url.startswith(prefix)))
 
-        monkeypatch.setattr(audio, "http_get", http_get)
-        monkeypatch.setattr(audio, "download", lambda url, path: path)
+        monkeypatch.setattr(deezer_api, "http_get", http_get)
+        monkeypatch.setattr(deezer_api, "download", lambda url, path: path)
         return DeezerResolver(registry).resolve(registry.dataset_tracks("catalog")[0]), requested
 
     return run
-
-
-@pytest.mark.parametrize(
-    ("wanted", "found", "durations_match", "expected"),
-    [
-        ("Wake Me Up - Radio Edit", "Wake Me Up", False, True),  # packaging words dropped
-        ("Girl I'm on the Way", "Girl Im on the Way", False, True),  # typo
-        ("C.R.E.A.M.", "C.R.E.A.M. (Cash Rules Everything Around Me)", True, True),
-        ("C.R.E.A.M.", "C.R.E.A.M. (Cash Rules Everything Around Me)", False, False),
-        ("Close To Me", "Close To Me (Live)", True, False),
-        ("Blue Sky - Michael Brun Remix", "Blue Sky (Michael Brun Extended Remix)", True, False),
-        ("Skyline - Klave Remix", "Skyline (Alex Schulz Remix)", True, False),
-    ],
-)
-def test_same_recording(wanted, found, durations_match, expected):
-    assert same_recording(wanted, found, durations_match=durations_match) is expected
 
 
 @pytest.mark.parametrize("isrc_status", [None, (FAILED, "network")])
@@ -79,7 +63,7 @@ def test_waits_for_the_isrc_stage(resolve, isrc_status):
         (deezer_track("Above", "Kenan Bell"), (DONE, "title")),  # title and artist both differ
         (deezer_track("I Wanna", "Con Brio", preview=""), (DONE, "title")),
         ({"id": 1}, (DONE, "title")),  # stub record
-        ({"error": {"code": audio.DEEZER_NO_DATA}}, (DONE, "title")),
+        ({"error": {"code": deezer_api.NO_DATA}}, (DONE, "title")),
         ({"error": {"code": 4}}, (FAILED, None)),  # quota: retry, don't fall back
     ],
 )

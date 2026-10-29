@@ -1,8 +1,7 @@
 import hashlib
 
 import pytest
-
-from overtone.ml import model_store
+from overtone_core.ml import model_store
 
 
 def test_builds_numbered_versions_with_a_manifest(tmp_path):

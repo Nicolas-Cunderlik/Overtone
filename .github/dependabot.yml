@@ -1,18 +1,21 @@
-# Version updates: app dependencies (pyproject.toml) and CI actions, monthly, one grouped PR each.
-# The research venv (research/stem_similarity/requirements.txt) is deliberately left out, so experiments
-# stay reproducible; it still gets Dependabot *security* alerts and PRs, which don't need this file.
+# Version updates: the workspace's dependencies (uv.lock) and CI actions, monthly, one grouped PR each.
 version: 2
 updates:
-  - package-ecosystem: pip
+  - package-ecosystem: uv
     directory: /
-    # A root pip job also scans nested requirements files; keep the research pins out of version updates
-    exclude-paths:
-      - "research/**"
     schedule:
       interval: monthly
     groups:
-      app:
+      dependencies:
         patterns: ["*"]
+    # The embedding stack: live songs are only comparable with catalog songs embedded by the same
+    # versions, so these move only together with a rebuilt stem index. Security PRs still arrive.
+    ignore:
+      - dependency-name: torch
+      - dependency-name: torchaudio
+      - dependency-name: demucs
+      - dependency-name: muq
+      - dependency-name: transformers
     commit-message:
       prefix: deps
   - package-ecosystem: github-actions

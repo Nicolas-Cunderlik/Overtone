@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "overtone-core"
+version = "0.1.0"
+description = "Shared by the Overtone app and its research pipeline: song matching, model artifacts, stem analysis, service clients."
+license = "LicenseRef-Proprietary"
+authors = [{ name = "Nicolas Cunderlik", email = "nicolas7cunderlik@gmail.com" }]
+requires-python = ">=3.13"
+# Exact pins. torch, torchaudio, demucs, muq and transformers must not change
+# without rebuilding the catalog stem index: live songs are only comparable
+# with catalog songs embedded by the same versions.
+dependencies = [
+    "numpy==2.5.4",
+    "pandas==3.1.0",
+    "scikit-learn==1.9.1",
+    "joblib==1.6.0",
+    "requests==2.34.2",
+    "soundfile==0.14.0",
+    "torch==2.14.1",
+    "torchaudio==2.11.0",
+    "demucs==4.1.0",
+    "muq==0.1.0",
+    "transformers==5.10.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

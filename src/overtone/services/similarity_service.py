@@ -23,7 +23,7 @@ class SimilarityService:
         with self._load_lock:
             if self._model is None and not self._load_failed:
                 try:
-                    from ..ml.similarity_model import SimilarityModel
+                    from overtone_core.ml.similarity_model import SimilarityModel
 
                     self._model = SimilarityModel()
                 except Exception:

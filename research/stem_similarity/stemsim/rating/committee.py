@@ -29,8 +29,7 @@ import logging
 from dataclasses import dataclass
 
 import numpy as np
-
-from overtone.ml import dedup
+from overtone_core.ml import dedup
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +192,7 @@ def load_pool(registry, track_ids, vectors, with_app=True):
 
 def _app_vectors(spotify_ids):
     """The app model's genre embedding per song, unit length; NaN rows where it doesn't know the song."""
-    from overtone.ml.similarity_model import SimilarityModel
+    from overtone_core.ml.similarity_model import SimilarityModel
 
     model = SimilarityModel()
     Z = model.Z / np.linalg.norm(model.Z, axis=1, keepdims=True)

@@ -16,7 +16,8 @@ has no audio source yet, so their pairs stay unscored until one is added.
 
 import csv
 
-from ..clients.http import download
+from overtone_core.clients.http import download
+
 from ..schema import PAIR, PERCEPTUAL, SPEARMAN, Judgment, Membership, NormalizedDataset, Track
 from .base import DatasetAdapter
 from .magnatagatune import clip_track

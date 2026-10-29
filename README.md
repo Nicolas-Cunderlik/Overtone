@@ -98,8 +98,8 @@ copy .env.example .env      # then fill in the keys
 Build the similarity model once (downloads an 8 MB public dataset into `data/`, trains into `models/` in about a minute):
 
 ```bash
-python -m overtone.ml.download_dataset
-python -m overtone.ml.train
+python -m overtone_core.ml.download_dataset
+python -m overtone_core.ml.train
 ```
 
 ## Run
@@ -125,7 +125,7 @@ Put the `.env` next to the exe; secrets are never bundled.
 - `pytest` runs the tests in `tests/`: `unit/` mirrors the package layout, and `unit/research/` covers the research pipeline.
 - `pre-commit run --all-files` runs the linters/formatter (ruff) and file hygiene hooks.
 - CI (`.github/workflows/ci.yml`) runs both on every pull request and every push to `main`.
-- `python -m overtone.ml.evaluate` compares similarity-model variants.
+- `python -m overtone_core.ml.evaluate` compares similarity-model variants.
 - Dependencies are pinned in `pyproject.toml` (`dev` extra for tooling).
 
 ### Utility scripts

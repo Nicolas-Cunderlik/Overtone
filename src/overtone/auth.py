@@ -18,11 +18,11 @@ import os
 
 import spotipy
 from openai import OpenAI
+from overtone_core.secrets import get_secret
 from spotipy.cache_handler import CacheFileHandler
 from spotipy.oauth2 import SpotifyOAuth
 
 from .config import SPOTIFY_TOKEN_CACHE_PATH
-from .secrets import get_secret
 
 
 # Spotify authentication and client setup

@@ -28,8 +28,8 @@ The owner steers this project and wants to understand it deeply, not to have it 
 | Tests | `pytest` (unit only: `pytest tests/unit`) |
 | Lint + format | `pre-commit run --all-files` (ruff check/format + hygiene hooks) |
 | Type check | `pyright` (basic mode over `src/`, config in `pyproject.toml`; also runs in CI) |
-| Train similarity model | `python -m overtone.ml.download_dataset` then `python -m overtone.ml.train` |
-| Compare model variants | `python -m overtone.ml.evaluate` |
+| Train similarity model | `python -m overtone_core.ml.download_dataset` then `python -m overtone_core.ml.train` |
+| Compare model variants | `python -m overtone_core.ml.evaluate` |
 | Build exe | `pyinstaller app.spec`, then `dist\Overtone.exe --self-test` |
 | Run CI checks locally | `python scripts/run_checks.py` |
 | Research pipeline overview | `python scripts/pipeline_status.py` |
@@ -61,7 +61,7 @@ Use the project venv (`.venv\Scripts\python`), where the package is installed ed
 
 ## Secrets and data
 
-- Secrets live only in `.env` at the repo root (template: `.env.example`), or next to the exe when frozen. Read them with `overtone.secrets.get_secret(name)` (no heavy imports, loads the file lazily), never by parsing `.env` yourself. Never log, print or commit it. `logging_config.py` caps spotipy/urllib3 logging at INFO because their DEBUG output leaks the client secret and tokens.
+- Secrets live only in `.env` at the repo root (template: `.env.example`), or next to the exe when frozen. Read them with `overtone_core.secrets.get_secret(name)` (no heavy imports, loads the file lazily), never by parsing `.env` yourself. Never log, print or commit it. `logging_config.py` caps spotipy/urllib3 logging at INFO because their DEBUG output leaks the client secret and tokens.
 - Runtime state (Spotify token, log, chord cache) goes to `config.APP_DATA_DIR` (`%LOCALAPPDATA%\Overtone`), never the repo. Tests that run app code should point `OVERTONE_DATA_DIR` at a temp dir.
 - Gitignored and regenerable: `data/` (dataset), `models/` (trained artifacts, bundled into the exe), research audio and embeddings. The `check-added-large-files` hook enforces this.
 - Spotify's audio-features endpoint is restricted for this app. Features for new songs come from FreqBlog (`FREQBLOG_API_KEY`), which allows 1000 requests/month. The app-side cap is 100/day, with a permanent cache by track_id and a catalog check before any request.

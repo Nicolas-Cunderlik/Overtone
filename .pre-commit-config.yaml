@@ -1,4 +1,4 @@
-# Install once per clone: pip install -e ".[dev]" && pre-commit install
+# Install once per clone: uv sync && .venv\Scripts\pre-commit install
 # Run everything manually: pre-commit run --all-files   (CI runs the same)
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -14,6 +14,7 @@ repos:
       # the code - keep them out of git
       - id: check-added-large-files
         args: ["--maxkb=500"]
+        exclude: ^uv\.lock$  # the workspace lock file is text, and large by nature
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
