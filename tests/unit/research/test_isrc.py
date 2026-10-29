@@ -90,3 +90,17 @@ def test_network_errors_fail_and_are_retried_next_run(registry):
 
     isrc.run(registry, client=FakeSpotify([spotify_track("sp1", "Song")]))
     assert registry.status(track.track_id, config.ISRC_STAGE)[0] == DONE
+
+
+def test_skips_tracks_only_no_audio_datasets_include_unless_named(registry, add_dataset, monkeypatch):
+    monkeypatch.setattr(config, "NO_AUDIO_DATASETS", ("behavioral",))
+    skipped = song_track("Skipped", "Artist", spotify_track_id="sp1")
+    shared = song_track("Shared", "Artist", spotify_track_id="sp2")
+    add_dataset("behavioral", [skipped, shared])
+    add_dataset("catalog", [shared])
+    client = FakeSpotify([spotify_track("sp1", "Skipped"), spotify_track("sp2", "Shared")])
+
+    assert isrc.run(registry, client=client) == {DONE: 1}
+    assert registry.status(skipped.track_id, config.ISRC_STAGE) is None
+    assert isrc.run(registry, dataset="behavioral", client=client) == {DONE: 1}  # naming the dataset opts in
+    assert registry.status(skipped.track_id, config.ISRC_STAGE)[0] == DONE

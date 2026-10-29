@@ -9,6 +9,9 @@ One resolver per Track.audio_source, so a new audio source is one class:
           the archive exists
   other   (e.g. fma) recorded as unavailable until a resolver exists
 
+Without --dataset, tracks that only config.NO_AUDIO_DATASETS include are
+skipped (Last.fm-only similar songs).
+
 Outcomes go to stage_status under "audio" with the file path (relative to the
 data dir) as the artifact. Network errors are `failed` and retried on the
 next run; "no match on Deezer" is `unavailable` (re-check by clearing it).
@@ -234,10 +237,17 @@ RESOLVERS = {resolver.source: resolver for resolver in (DeezerResolver, MtatReso
 
 
 def run(registry, source=None, dataset=None, limit=None):
-    """Resolves audio for pending tracks; returns {state: count}."""
+    """Resolves audio for pending tracks; returns {state: count}.
+    Without `dataset`, skips tracks that only config.NO_AUDIO_DATASETS include."""
     resolvers = {}
     counts = {}
-    pending = registry.pending(STAGE, audio_source=source, dataset=dataset, limit=limit)
+    pending = registry.pending(
+        STAGE,
+        audio_source=source,
+        dataset=dataset,
+        limit=limit,
+        exclude_only_in=() if dataset else config.NO_AUDIO_DATASETS,
+    )
     for i, track in enumerate(pending, start=1):
         src = track["audio_source"]
         if src not in resolvers:

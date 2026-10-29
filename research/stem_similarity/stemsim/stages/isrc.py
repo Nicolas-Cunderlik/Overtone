@@ -3,7 +3,8 @@ can fetch that exact recording instead of matching by title.
 
 Tracks with a Spotify id are looked up in batches; the rest, and ids without
 an ISRC, are searched by artist + title under the audio stage's matching
-rules. Only tracks still without audio are looked up.
+rules. Only tracks still without audio are looked up, and without --dataset,
+not tracks that only config.NO_AUDIO_DATASETS include.
 
 Outcomes: `done` with detail {"isrc", "duration_s", "spotify_id",
 "spotify_title", "via"}; `unavailable` when no matching track has an ISRC;
@@ -28,8 +29,16 @@ SEARCH_LIMIT = 10
 
 
 def run(registry, dataset=None, limit=None, client=None):
-    """Looks up ISRCs for Deezer-bound tracks still without audio; returns {state: count}."""
-    pending = registry.pending(STAGE, audio_source="deezer", dataset=dataset, limit=limit, skip_done=config.AUDIO_STAGE)
+    """Looks up ISRCs for Deezer-bound tracks still without audio; returns {state: count}.
+    Without `dataset`, skips tracks that only config.NO_AUDIO_DATASETS include."""
+    pending = registry.pending(
+        STAGE,
+        audio_source="deezer",
+        dataset=dataset,
+        limit=limit,
+        skip_done=config.AUDIO_STAGE,
+        exclude_only_in=() if dataset else config.NO_AUDIO_DATASETS,
+    )
     if not pending:
         return {}
     client = client or SpotifyClient.from_env()

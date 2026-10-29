@@ -5,8 +5,9 @@
   python -m stemsim ingest magnatagatune [--with-audio]
   python -m stemsim ingest ccmsim [--all-cultures]
   python -m stemsim ingest lastfm [--limit 500]      crawl 500 more seeds, then re-normalize
-  python -m stemsim isrc [--dataset lastfm] [--limit 1000]   Spotify ISRCs (Deezer audio waits for these)
-  python -m stemsim audio [--source deezer] [--dataset lastfm] [--limit 1000]
+  python -m stemsim isrc [--dataset dim_sim] [--limit 1000]  Spotify ISRCs (Deezer audio waits for these)
+  python -m stemsim audio [--source deezer] [--dataset dim_sim] [--limit 1000]
+                         isrc and audio skip Last.fm-only tracks unless given --dataset lastfm
   python -m stemsim separate [--dataset dim_sim] [--limit 100]   Demucs stems (GPU)
   python -m stemsim embed [--dataset dim_sim] [--limit 100]      MuQ-MuLan vectors (GPU)
   python -m stemsim status                           per-dataset progress
@@ -66,12 +67,14 @@ def main(argv=None):
     p.add_argument("--with-audio", action="store_true", help="magnatagatune: also download the 3.3 GB audio")
     p.add_argument("--all-cultures", action="store_true", help="ccmsim: keep all nine source datasets")
     p.add_argument("--limit", type=int, default=200, help="lastfm: seeds to crawl this run")
+    no_audio = ", ".join(config.NO_AUDIO_DATASETS)
+    dataset_help = f"only this dataset's tracks; without it, tracks that only {no_audio} includes are skipped"
     p = commands.add_parser("isrc", help="Spotify ISRCs for Deezer tracks still without audio")
-    p.add_argument("--dataset", choices=sorted(ADAPTERS))
+    p.add_argument("--dataset", choices=sorted(ADAPTERS), help=dataset_help)
     p.add_argument("--limit", type=int)
     p = commands.add_parser("audio", help="fetch/extract audio for pending tracks")
     p.add_argument("--source")
-    p.add_argument("--dataset")
+    p.add_argument("--dataset", help=dataset_help)
     p.add_argument("--limit", type=int)
     for name, help_text in (("separate", "Demucs stems for tracks with audio"), ("embed", "MuQ-MuLan vectors")):
         p = commands.add_parser(name, help=help_text)
