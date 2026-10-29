@@ -10,7 +10,8 @@ normalize() turns each cached list into pairs (seed, similar song) with
 Last.fm's match score (0-1) as the value, grouped by seed for ranking metrics
 (nDCG). Similar songs become `song:` tracks, so the ones already in the
 catalog merge with it. The rest get no audio by default (config.NO_AUDIO_DATASETS);
-`stemsim isrc/audio --dataset lastfm` fetches it.
+to fetch it, run `python -m stemsim isrc --dataset lastfm`, then
+`python -m stemsim audio --dataset lastfm` (audio waits for the ISRCs).
 
 Etiquette: Last.fm's API terms ask for a reasonable request rate and an
 identifiable user agent; we stay at REQUESTS_PER_SECOND and back off on
