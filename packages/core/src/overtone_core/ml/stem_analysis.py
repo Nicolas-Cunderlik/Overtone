@@ -3,7 +3,7 @@
 The research pipeline runs it over the catalog (stemsim's embed stage) and
 the app runs it on a live song's preview, so the two are comparable:
 
-    wav, sr = load_audio(path_or_file)
+    wav, sr = load_audio(path)
     result = analyse(wav, sr)          # Demucs stems + MuQ-MuLan, full audio
     result.emb[0], result.rms_db[0]    # (channels, 512), (channels,) in stems.CHANNELS order
 
@@ -55,10 +55,9 @@ class Analysis:
     rms_db: np.ndarray  # (W, channels) float32
 
 
-def load_audio(source):
-    """(2, samples) float32 at the file's own rate; `source` is a path or a
-    file-like object (e.g. io.BytesIO of an MP3)."""
-    wav, sr = sf.read(source, dtype="float32", always_2d=True)
+def load_audio(path):
+    """(2, samples) float32 at the file's own rate."""
+    wav, sr = sf.read(path, dtype="float32", always_2d=True)
     wav = wav.T
     if wav.shape[0] == 1:
         wav = np.repeat(wav, 2, axis=0)

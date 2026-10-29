@@ -23,4 +23,5 @@ APP_DATA_DIR = os.environ.get("OVERTONE_DATA_DIR", user_data_dir(APP_NAME, appau
 SPOTIFY_TOKEN_CACHE_PATH = os.path.join(APP_DATA_DIR, "spotify_token.json")
 LOG_FILE = os.environ.get("OVERTONE_LOG_FILE", os.path.join(APP_DATA_DIR, "logs", "overtone.log"))
 CHORD_CACHE_DIR = os.environ.get("OVERTONE_CHORD_CACHE_DIR", os.path.join(APP_DATA_DIR, "cache", "chords"))
+STEM_CACHE_DIR = os.path.join(APP_DATA_DIR, "cache", "stems")  # live songs' stem vectors, never audio
 APP_TITLE = os.environ.get("OVERTONE_APP_TITLE", APP_NAME)
