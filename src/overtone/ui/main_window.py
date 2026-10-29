@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import time
 
 from PyQt5.QtCore import QEvent, Qt, QTimer
 from PyQt5.QtGui import QBrush, QColor, QFont, QFontDatabase, QIcon, QPainter, QPixmap
@@ -38,7 +39,7 @@ IDLE_GRACE_POLLS = 3
 # After a click-to-play, how long to wait before re-polling - long enough for
 # Spotify to report the new track as current
 PLAY_REFRESH_DELAY_MS = 700
-# Longest the window waits on close for an in-flight playback poll
+# Longest the window waits on close for running workers, all together
 SHUTDOWN_WAIT_MS = 6000
 
 # Docking is event-driven (WinEventHook on Spotify's window); this slow poll
@@ -363,10 +364,24 @@ class SpotifyApp(QWidget):
         if self._spotify_hook is not None:
             self._spotify_hook.unhook()
             self._spotify_hook = None
-        # A QThread destroyed mid-request aborts the process; polls are short,
-        # and spotipy's own request timeout bounds this wait
-        if self._poll_worker is not None:
-            self._poll_worker.wait(SHUTDOWN_WAIT_MS)
+        # A QThread destroyed while running aborts the process. Ask every worker
+        # to stop (similar-tracks workers check between steps), then wait for
+        # all of them within one shared deadline.
+        workers = [w for w in (self._poll_worker, self._play_worker, *self._workers) if w is not None]
+        for worker in workers:
+            worker.requestInterruption()
+        deadline = time.monotonic() + SHUTDOWN_WAIT_MS / 1000
+        for worker in workers:
+            worker.wait(max(0, int((deadline - time.monotonic()) * 1000)))
+        still_running = [w for w in workers if w.isRunning()]
+        if still_running:
+            # A model load, a CPU analysis or an AI request can outlast the wait
+            # and can't be stopped mid-step. Exit without Qt's teardown, which
+            # would abort on the running thread; every cache is written via a
+            # temp file + rename, so nothing is left half-written.
+            logger.warning("Exiting with %d worker(s) still running", len(still_running))
+            logging.shutdown()
+            os._exit(0)
         super().closeEvent(a0)
         QApplication.quit()
 

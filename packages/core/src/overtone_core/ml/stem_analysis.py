@@ -39,8 +39,12 @@ from .stems import CHANNELS, EMBED_DIMS, EMBED_MODEL, MIN_WINDOW_S, STEM_SR, STE
 logger = logging.getLogger(__name__)
 
 DEMUCS_MODEL = "htdemucs"
+# Ultimate Vocal Remover's copy of the official checkpoint; None without LOCALAPPDATA
+# (e.g. Linux), rather than a path relative to the working directory
 UVR_DEMUCS_REPO = (
-    Path(os.environ.get("LOCALAPPDATA", "")) / "Programs/Ultimate Vocal Remover/models/Demucs_Models/v3_v4_repo"
+    Path(os.environ["LOCALAPPDATA"]) / "Programs/Ultimate Vocal Remover/models/Demucs_Models/v3_v4_repo"
+    if os.environ.get("LOCALAPPDATA")
+    else None
 )
 
 
@@ -126,7 +130,7 @@ class Separator:
         from demucs.pretrained import get_model  # heavy import; only when separation actually runs
 
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        if (UVR_DEMUCS_REPO / f"{DEMUCS_MODEL}.yaml").exists():
+        if UVR_DEMUCS_REPO is not None and (UVR_DEMUCS_REPO / f"{DEMUCS_MODEL}.yaml").exists():
             model = get_model(DEMUCS_MODEL, repo=UVR_DEMUCS_REPO)
         else:
             model = get_model(DEMUCS_MODEL)

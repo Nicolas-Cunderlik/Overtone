@@ -3,6 +3,7 @@ title search, and fetches it. The research audio stage and the app's live
 inference both use it, so catalog and live songs get their audio the same way.
 """
 
+import http.client
 import json
 import urllib.error
 
@@ -15,6 +16,8 @@ TRACK_URL = "https://api.deezer.com/track"
 REQUESTS_PER_SECOND = 8  # Deezer allows ~50 requests / 5 s
 SEARCH_LIMIT = 10
 NO_DATA = 800  # Deezer's error code for "not found"; others (e.g. 4, quota) are transient
+# What fetching a preview can raise once http's own retries are spent
+DOWNLOAD_ERRORS = (urllib.error.URLError, TimeoutError, ConnectionError, http.client.IncompleteRead)
 
 
 class DeezerError(Exception):
@@ -71,14 +74,14 @@ class DeezerClient:
         try:
             self.limiter.wait()
             download(hit["preview"], path)
-        except (urllib.error.URLError, TimeoutError) as exc:
+        except DOWNLOAD_ERRORS as exc:
             raise DeezerError(f"preview download failed: {exc}") from exc
 
     def preview_bytes(self, hit):
         """The hit's preview MP3, in memory."""
         try:
             return http_get(hit["preview"], limiter=self.limiter)
-        except (urllib.error.URLError, TimeoutError) as exc:
+        except DOWNLOAD_ERRORS as exc:
             raise DeezerError(f"preview download failed: {exc}") from exc
 
     def _by_isrc(self, isrc):

@@ -88,7 +88,25 @@ uv sync                           # one .venv for the app and the research pipel
 copy .env.example .env            # then fill in the keys
 ```
 
-Similar tracks need the catalog stem index in `models/stem-muq/v1/`, built by the research pipeline (`python -m stemsim index --weights-run <run id>` from `research/stem_similarity`); the installer will download it. Demucs and MuQ-MuLan download their weights on first use.
+Similar tracks need the catalog stem index in `models/stem-muq/v1/`. There is no download for it yet (the planned installer will fetch it). Until then, build it with the research pipeline. That fetches about 30k Deezer previews, then separates and embeds them on a GPU, so it takes a long time. With the venv active (`.venv\Scripts\activate`):
+
+```bash
+python -m overtone_core.ml.download_dataset      # the catalog's song list, into data/
+cd research/stem_similarity
+python -m stemsim ingest spotify_catalog         # the candidate songs
+python -m stemsim ingest dim_sim                 # the judgments the stem weights are fitted on...
+python -m stemsim ingest magnatagatune --with-audio
+python -m stemsim ingest listener_abx            # ...and the held-out ones
+python -m stemsim ingest ccmsim
+python -m stemsim isrc                           # Spotify ISRCs, so Deezer gives the exact recording
+python -m stemsim audio                          # previews
+python -m stemsim separate --dataset dim_sim     # stems kept on disk; repeat for magnatagatune, listener_abx, ccmsim
+python -m stemsim embed                          # mix + stem vectors for every track
+python -m stemsim.experiments.stem_weights       # fits the weights; the run id is in MLflow (scripts/launch_mlflow.py)
+python -m stemsim index --weights-run <run id>   # writes models/stem-muq/vN/
+```
+
+`STEM_MODEL_VERSION` in `packages/core/src/overtone_core/ml/paths.py` must name the version `index` wrote (`v1` on a first build). Without the index, Similar Tracks shows an error and `overtone --self-test` fails. Demucs and MuQ-MuLan download their weights on first use.
 
 The older feature model is kept as the evaluation baseline (downloads an 8 MB public dataset into `data/`, trains into `models/` in about a minute):
 
