@@ -15,14 +15,16 @@ logger = logging.getLogger(__name__)
 
 
 def self_test():
-    """Imports the whole app (done above), then loads the bundled similarity
-    model and runs one lookup - enough to catch a broken build or missing
-    artifacts without touching Spotify or showing a window."""
-    from overtone_core.ml.similarity_model import SimilarityModel
+    """Imports the whole app (done above), then loads the pinned stem model and
+    scores one catalog song - enough to catch a broken install or missing
+    artifacts without touching Spotify, Deezer or showing a window."""
+    from overtone_core.ml.stem_model import StemModel
 
-    model = SimilarityModel()
-    results = model.find_similar(model.track_ids[0], k=3)
-    logger.info("Self-test: model loaded (%d songs), lookup returned %d results", len(model.track_ids), len(results))
+    model = StemModel()
+    results = model.similar_to(*model.vectors(0), k=3, exclude_rows=[0])
+    logger.info(
+        "Self-test: stem model %s (%d songs), lookup returned %d results", model.version, len(model), len(results)
+    )
     return 0 if len(results) == 3 else 1
 
 

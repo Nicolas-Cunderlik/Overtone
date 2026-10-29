@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 from overtone_core.ml import model_store
 from overtone_core.ml.paths import MODELS_DIR, STEM_CHANNEL_FILE, STEM_LEVELS_FILE, STEM_MODEL, STEM_TRACKS_FILE
-from overtone_core.ml.stems import CHANNELS
+from overtone_core.ml.stems import CHANNELS, EMBED_DIMS
 
 from . import config
 from .registry import DONE
@@ -34,7 +34,6 @@ from .registry import DONE
 logger = logging.getLogger(__name__)
 
 DATASET = "spotify_catalog"
-EMBED_DIMS = 512
 FULL_AUDIO = 0  # window index of the full preview in every embedding file (embed.py)
 CHECK_QUERIES = 200
 CHECK_TOP_K = 10

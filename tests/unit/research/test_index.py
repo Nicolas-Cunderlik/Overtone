@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from overtone_core.ml import model_store
-from overtone_core.ml.stems import CHANNELS
+from overtone_core.ml.stems import CHANNELS, EMBED_DIMS
 from stemsim import config, index
 from stemsim.registry import DONE, FAILED
 from stemsim.schema import song_track
@@ -19,7 +19,7 @@ def embed(registry, track, hot_dim=0, rms_db=-20.0, n_windows=2, channels=CHANNE
     """Writes an embedding file and marks it done. Window 0 (the full audio) is
     3 * one-hot at `hot_dim` in every channel at `rms_db`; window 1 (an excerpt)
     points at the last dim at 0 dB, so tests can tell which window was read."""
-    emb = np.zeros((2, len(CHANNELS), index.EMBED_DIMS), np.float32)
+    emb = np.zeros((2, len(CHANNELS), EMBED_DIMS), np.float32)
     emb[0, :, hot_dim] = 3.0
     emb[1, :, -1] = 1.0
     levels = np.array([[rms_db] * len(CHANNELS), [0.0] * len(CHANNELS)], np.float32)
@@ -55,7 +55,7 @@ def test_build_writes_catalog_songs_full_audio_in_row_order(registry, add_datase
     tracks = pd.read_csv(built.path / "tracks.csv")
     assert tracks["spotify_track_id"].tolist() == ["sp-a", "sp-b"]  # sorted by track_id; failed one skipped
     assert tracks["title"].tolist() == ["A Song", "B Song"]
-    unit_full_audio = np.zeros((2, index.EMBED_DIMS), np.float16)
+    unit_full_audio = np.zeros((2, EMBED_DIMS), np.float16)
     unit_full_audio[0, 1] = unit_full_audio[1, 2] = 1.0
     for channel in CHANNELS:
         vectors = np.load(built.path / f"{channel}.npy")
