@@ -1,6 +1,6 @@
 """Deezer API client: finds a track's 30 s preview by ISRC, else by artist +
-title search, and fetches it. The research audio stage and the app's live
-inference both use it, so catalog and live songs get their audio the same way.
+title search, and fetches it. Catalog and live songs both get their audio
+through it, so the two are comparable.
 """
 
 import http.client

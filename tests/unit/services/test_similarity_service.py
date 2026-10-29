@@ -85,20 +85,20 @@ def test_catalog_song_uses_stored_vectors_and_excludes_itself(make_service):
     assert (deezer.calls, analysed, analyzing) == ([], [], [])
 
 
-def test_other_song_is_analysed_from_its_deezer_preview_once_then_cached(make_service):
+def test_other_song_is_analysed_from_its_deezer_preview_once_then_cached_on_disk(make_service):
     deezer = FakeDeezer()
     service, analysed = make_service(deezer)
     analyzing = []
 
     first = service.find_similar(spotify_track("live_id"), on_analyzing=analyzing.append)
-    second = service.find_similar(spotify_track("live_id"), on_analyzing=analyzing.append)
-
-    third = service.find_similar(spotify_track("other_live_id"), on_analyzing=analyzing.append)
+    other = service.find_similar(spotify_track("other_live_id"), on_analyzing=analyzing.append)
+    restarted, analysed_after_restart = make_service(deezer)  # same cache folder
+    again = restarted.find_similar(spotify_track("live_id"), on_analyzing=analyzing.append)
 
     assert deezer.calls[0] == ("Song", "Artist", "ISRC1", 200.0)  # first artist, ISRC and duration from Spotify
-    assert analysed == [b"mp3", b"mp3"]  # the repeat came from the cache
-    assert analyzing == [True, False]  # only the first analysis loads the models
-    assert first[0]["score"] == second[0]["score"] == third[0]["score"] == pytest.approx(LIVE_EMB.sum())
+    assert (analysed, analysed_after_restart) == ([b"mp3", b"mp3"], [])
+    assert analyzing == [True, False]  # only the first analysis loads the models; the cache hit announces none
+    assert first[0]["score"] == other[0]["score"] == again[0]["score"] == pytest.approx(LIVE_EMB.sum())
     assert first[0]["excluded"] == []
 
 

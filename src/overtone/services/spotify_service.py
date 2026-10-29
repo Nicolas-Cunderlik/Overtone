@@ -86,12 +86,10 @@ class SpotifyService:
     def _play_request(self, client, track_id, uri):
         """start_playback arguments that play the track inside its album.
 
-        Spotify's desktop app (since ~1.3.1, Sep 2026) answers a bare
-        `uris=[track]` request with 204 but stops playback instead of playing
-        the track; a request with a context (album, playlist) still plays
-        (reported by many users on Spotify's community forum, Sep-Oct 2026).
-        Falls back to `uris` if the album lookup fails (the web player still
-        plays those)."""
+        Spotify's desktop app (from ~1.3.1) answers a bare `uris=[track]`
+        request with 204 but stops playback instead of playing the track; a
+        request with a context (album, playlist) still plays. Falls back to
+        `uris` if the album lookup fails (the web player still plays those)."""
         if track_id not in self._album_requests:
             try:
                 # from_token: the album and track version playable in the user's market

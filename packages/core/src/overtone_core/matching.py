@@ -42,9 +42,8 @@ def same_recording(wanted_title, found_title, durations_match=False):
     "Remastered" dropped) is a match. Beyond that, a fuzzy match (typos,
     punctuation) is only trusted between two plain titles - if either names a
     distinct recording ("Remix", "Live", "Acoustic", "Extended", or anything
-    unrecognised), it must match exactly. Measured on the 300-song pilot: the
-    old fuzzy-only rule accepted ~20 wrong versions (another remix, the live
-    cut, the extended mix).
+    unrecognised), it must match exactly: fuzzy matching alone accepts
+    another remix, the live cut or the extended mix.
 
     With `durations_match`, a title that is the other plus plain words also
     matches ("C.R.E.A.M." vs "C.R.E.A.M. (Cash Rules Everything Around Me)")."""

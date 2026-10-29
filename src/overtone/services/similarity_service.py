@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 class SimilarityService:
     def __init__(self, model_factory=None, deezer=None, analyse=None, cache=None):
-        """The defaults are the real model, Deezer client and analysis;
-        tests pass fakes."""
+        """Each None means the real one: StemModel, DeezerClient,
+        stem_analysis on the MP3 bytes, StemCache()."""
         self._model_factory = model_factory
         self._deezer = deezer
         self._analyse = analyse
@@ -46,8 +46,9 @@ class SimilarityService:
 
         on_analyzing(first) is called before a song outside the catalog is
         analysed (seconds on a GPU, longer on CPU); `first` is True until an
-        analysis has succeeded, as that one also loads the models (~1 min). cancelled() is polled
-        between the slow steps so a superseded request stops early."""
+        analysis has succeeded, as that one also loads the models (~1 min).
+        cancelled() is polled between the slow steps so a superseded request
+        stops early."""
         cancelled = cancelled or (lambda: False)
         track_id, title = track.get("id"), track.get("name")
         artist = next((a.get("name") for a in track.get("artists") or []), None)
@@ -123,7 +124,7 @@ class SimilarityService:
         """(emb, rms_db) of the full audio, from MP3 bytes."""
         if self._analyse is not None:
             return self._analyse(audio)
-        from overtone_core.ml import stem_analysis  # imports torch; only once a song needs analysing
+        from overtone_core.ml import stem_analysis  # heavy import; only once a song needs analysing
 
         # libsndfile can't detect MP3 in a memory buffer, so decode from a
         # file, as the pipeline does; deleted right after (previews are never kept)

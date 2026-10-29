@@ -56,9 +56,24 @@ def test_falls_back_to_the_bare_track_when_the_album_lookup_fails(service_with):
     assert client.plays == [{"uris": ["spotify:track:t1"]}]
 
 
-def test_no_active_device_retries_the_same_request_on_the_last_device(service_with):
-    client = FakeSpotify({"t1": ("a1", "t1")}, fail_first_play_with=404)
+@pytest.mark.parametrize(
+    ("status", "result", "retried"),
+    [
+        (404, "played", True),  # no active device: same request on the last device
+        (403, "opened", False),  # playback control refused: open the track in the Spotify app
+    ],
+)
+def test_refused_playback_retries_on_the_last_device_or_opens_the_app(
+    service_with, monkeypatch, status, result, retried
+):
+    opened = []
+    monkeypatch.setattr(spotify_service.os, "startfile", opened.append, raising=False)  # Windows-only
+    client = FakeSpotify({"t1": ("a1", "t1")}, fail_first_play_with=status)
 
-    assert service_with(client).play_track("t1", fallback_device_id="desktop") == "played"
+    assert service_with(client).play_track("t1", fallback_device_id="desktop") == result
+
     album_request = {"context_uri": "spotify:album:a1", "offset": {"uri": "spotify:track:t1"}}
-    assert client.plays == [album_request, {"device_id": "desktop", **album_request}]
+    if retried:
+        assert (client.plays, opened) == ([album_request, {"device_id": "desktop", **album_request}], [])
+    else:
+        assert (client.plays, opened) == ([album_request], ["spotify:track:t1"])

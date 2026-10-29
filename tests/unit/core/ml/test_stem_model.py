@@ -22,22 +22,31 @@ def unit(*values):
     return v / np.linalg.norm(v)
 
 
+def song(spotify_id, title=None, artist="Artist", vectors=None, levels=None):
+    """A catalog song; channels missing from `vectors` get (1, 0, 0), from `levels` LOUD."""
+    return {
+        "spotify_id": spotify_id,
+        "title": title or spotify_id,
+        "artist": artist,
+        "vectors": vectors or {},
+        "levels": levels or {},
+    }
+
+
 @pytest.fixture
 def build(tmp_path):
-    """build(songs) -> StemModel over a version in tmp_path. Each song:
-    (spotify_id, title, artist, {channel: vector}, {channel: rms_db}); missing
-    channels get (1, 0, 0) at LOUD."""
+    """build(songs, params=PARAMS) -> StemModel over a version in tmp_path."""
 
     def make(songs, params=PARAMS):
         with model_store.new_version(STEM_MODEL, params=params, root=tmp_path) as built:
             pd.DataFrame(
-                [(f"song:{i}", sid, title, artist) for i, (sid, title, artist, _, _) in enumerate(songs)],
+                [(f"song:{i}", s["spotify_id"], s["title"], s["artist"]) for i, s in enumerate(songs)],
                 columns=["track_id", "spotify_track_id", "title", "artist"],
             ).to_csv(built.path / STEM_TRACKS_FILE, index=False)
             for channel in CHANNELS:
-                vectors = [song[3].get(channel, unit(1, 0, 0)) for song in songs]
+                vectors = [s["vectors"].get(channel, unit(1, 0, 0)) for s in songs]
                 np.save(built.path / STEM_CHANNEL_FILE.format(channel=channel), np.array(vectors, np.float16))
-            levels = [[song[4].get(channel, LOUD) for channel in CHANNELS] for song in songs]
+            levels = [[s["levels"].get(channel, LOUD) for channel in CHANNELS] for s in songs]
             np.save(built.path / STEM_LEVELS_FILE, np.array(levels, np.float32))
         return StemModel(built.version, root=tmp_path)
 
@@ -45,7 +54,7 @@ def build(tmp_path):
 
 
 def test_finds_catalog_songs_by_spotify_id_or_by_title_and_artist(build):
-    model = build([("id0", "Song A", "Artist", {}, {}), ("id1", "Song B", "Artist", {}, {})])
+    model = build([song("id0", "Song A"), song("id1", "Song B")])
 
     assert model.find(spotify_track_id="id1") == 1
     assert model.find(spotify_track_id="unknown", title="Song B (feat. Guest) - Remastered", artist="Artist") == 1
@@ -57,10 +66,10 @@ def test_ranks_by_weighted_channel_scores_and_excludes_the_query(build):
     same, half, other = unit(1, 0, 0), unit(1, 1, 0), unit(0, 1, 0)
     model = build(
         [
-            ("query", "Query", "A", {}, {}),
-            ("same_drums", "Same drums", "B", {"mix": other, "drums": same}, {}),
-            ("same_mix", "Same mix", "C", {"mix": same, "drums": other}, {}),
-            ("half_mix", "Half mix", "D", {"mix": half, "drums": other}, {}),
+            song("query"),
+            song("same_drums", vectors={"mix": other, "drums": same}),
+            song("same_mix", "Same mix", "C", vectors={"mix": same, "drums": other}),
+            song("half_mix", vectors={"mix": half, "drums": other}),
         ]
     )
     query = model.find(spotify_track_id="query")
@@ -69,19 +78,13 @@ def test_ranks_by_weighted_channel_scores_and_excludes_the_query(build):
 
     # mix weighs 0.5, drums 0.2: same mix (0.5 + 0.3 from bass/vocals/other) beats half mix, then same drums
     assert [r["track_id"] for r in results] == ["same_mix", "half_mix"]
-    assert results[0]["track_name"] == "Same mix"
-    assert results[0]["track_artist"] == "C"
+    assert (results[0]["track_name"], results[0]["track_artist"]) == ("Same mix", "C")
     assert results[0]["score"] == pytest.approx(0.5 + 0.0 + 0.1 + 0.1 + 0.1, abs=1e-3)
     assert results[0]["channels"] == pytest.approx({"mix": 1.0, "drums": 0.0, "bass": 1.0, "vocals": 1.0, "other": 1.0})
 
 
 def test_silent_channels_score_minus_one_against_audible_and_zero_against_silent(build):
-    model = build(
-        [
-            ("silent_bass", "Silent bass", "A", {}, {"bass": SILENT}),
-            ("loud_bass", "Loud bass", "B", {}, {}),
-        ]
-    )
+    model = build([song("silent_bass", levels={"bass": SILENT}), song("loud_bass")])
     emb, levels = model.vectors(model.find(spotify_track_id="silent_bass"))
 
     by_id = {r["track_id"]: r["channels"]["bass"] for r in model.similar_to(emb, levels, k=2)}
@@ -90,7 +93,7 @@ def test_silent_channels_score_minus_one_against_audible_and_zero_against_silent
 
 
 def test_k_is_capped_by_the_songs_left(build):
-    model = build([("a", "A", "X", {}, {}), ("b", "B", "X", {}, {})])
+    model = build([song("a"), song("b")])
 
     assert len(model.similar_to(*model.vectors(0), k=3, exclude_rows=[0])) == 1
     assert model.similar_to(*model.vectors(0), k=3, exclude_rows=[0, 1]) == []
@@ -98,4 +101,4 @@ def test_k_is_capped_by_the_songs_left(build):
 
 def test_rejects_an_index_with_other_channels(build):
     with pytest.raises(ValueError, match="channels"):
-        build([("a", "A", "X", {}, {})], params={**PARAMS, "channels": ["mix", "drums"]})
+        build([song("a")], params={**PARAMS, "channels": ["mix", "drums"]})
