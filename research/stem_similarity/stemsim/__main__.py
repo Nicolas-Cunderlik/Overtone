@@ -13,6 +13,7 @@
   python -m stemsim status                           per-dataset progress
   python -m stemsim session [--rater nicolas]        build the next rating session (rating/sessions.py)
   python -m stemsim rate [--session NAME]            serve a session to rate (rating/server.py)
+  python -m stemsim index --weights-run RUN_ID       next stem-muq model version (index.py)
 
 Every command is safe to re-run and to run alongside the others; a second
 copy of the same stage refuses to start. GPU stages without --dataset work
@@ -57,6 +58,31 @@ def _run_by_priority(registry, stage_run, dataset, limit):
     return totals
 
 
+def _weights_from_run(run_id, registry):
+    """index.build()'s weights, silent_db and source, from a stem-weights MLflow run."""
+    import json
+
+    import mlflow  # not installed in the app venv the unit tests run in
+
+    from . import tracking
+
+    mlflow.set_tracking_uri(tracking.tracking_uri())
+    run = mlflow.get_run(run_id)
+    path = mlflow.artifacts.download_artifacts(run_id=run_id, artifact_path="weights.json")
+    with open(path, encoding="utf-8") as f:
+        weights = json.load(f)
+    source = {
+        "weights_run": run_id,
+        "weights_run_name": run.info.run_name,
+        "weights_git_commit": run.data.tags.get("git_commit"),
+        "data": {
+            name: embedded
+            for name, (_judgments, embedded) in tracking.data_snapshot(registry, config.EMBED_STAGE).items()
+        },
+    }
+    return {"weights": weights, "silent_db": float(run.data.params["silent_db"]), "source": source}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="python -m stemsim", description=__doc__.split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
@@ -86,6 +112,8 @@ def main(argv=None):
     p.add_argument("--seed", type=int, help="for a reproducible session")
     p.add_argument("--dry-run", action="store_true", help="print the session without writing it")
     commands.add_parser("rate", help="serve a session in the ABX rating app (rate --help for its options)")
+    p = commands.add_parser("index", help="build the next stem-muq model version from the catalog's embeddings")
+    p.add_argument("--weights-run", required=True, help="stem-weights MLflow run whose fitted weights to ship")
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["rate"]:  # the server parses its own options and needs no registry
         from .rating import server
@@ -139,6 +167,11 @@ def main(argv=None):
             print(f"(dry run - {name} not written)")
         else:
             print(f"Wrote {sessions.write(rows, name)} - rate it with scripts/launch_rating_server.py")
+    elif args.command == "index":
+        from . import index
+
+        built = index.build(registry, **_weights_from_run(args.weights_run, registry))
+        print(f"Wrote {built.path}")
     elif args.command == "status":
         stages = [config.ISRC_STAGE, config.AUDIO_STAGE, config.SEPARATE_STAGE, config.EMBED_STAGE]
         print(

@@ -111,7 +111,7 @@ class Vectors:
             out = self.registry.output(track_id, config.EMBED_STAGE)
             self._files[track_id] = None if out is None else dict(np.load(out[0]))
         data = self._files[track_id]
-        if data is None or not len(data["windows"]):  # an embed file with no windows counts as missing
+        if data is None:
             return None
         index = 0  # full audio
         if window is not None:

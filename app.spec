@@ -8,14 +8,20 @@
 # OVERTONE_ENV_FILE env var at it). The login token, log and chord cache go
 # to %LOCALAPPDATA%\Overtone. See src/overtone/config.py.
 import os
+import sys
+
+sys.path.insert(0, "src")
+from overtone.ml.paths import FEATURE_MODEL, FEATURE_MODEL_VERSION  # noqa: E402
 
 # Bundle paths mirror the source layout, so config.PROJECT_ROOT /
-# config.ASSET_DIR resolve the same way inside the exe (sys._MEIPASS)
-if not os.path.isdir("models/similarity"):
-    raise SystemExit("Model artifacts missing - run `python -m overtone.ml.train` first")
+# config.ASSET_DIR resolve the same way inside the exe (sys._MEIPASS).
+# Only the pinned model version is bundled.
+model_dir = f"models/{FEATURE_MODEL}/{FEATURE_MODEL_VERSION}"
+if not os.path.isdir(model_dir):
+    raise SystemExit(f"{model_dir} missing - run `python -m overtone.ml.train` (and pin its version) first")
 datas = [
     ("src/overtone/assets", "overtone/assets"),  # the title font is optional (gitignored)
-    ("models/similarity", "models/similarity"),
+    (model_dir, model_dir),
 ]
 
 a = Analysis(
