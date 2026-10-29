@@ -15,6 +15,7 @@ requires-python = ">=3.13"
 # The single uv.lock at the repo root pins the whole workspace (app, core, research).
 dependencies = [
     "overtone-core",
+    "numpy==2.5.4",
     "PyQt5==5.15.11",
     "requests==2.34.2",
     "spotipy==2.26.0",

@@ -3,8 +3,8 @@ revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'win32'",
-    "python_full_version < '3.14' and sys_platform == 'win32'",
     "python_full_version >= '3.14' and sys_platform == 'linux'",
+    "python_full_version < '3.14' and sys_platform == 'win32'",
     "python_full_version < '3.14' and sys_platform == 'linux'",
 ]
 supported-markers = [
@@ -2426,6 +2426,7 @@ name = "overtone"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "numpy" },
     { name = "openai" },
     { name = "overtone-core" },
     { name = "platformdirs" },
@@ -2446,6 +2447,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "numpy", specifier = "==2.5.4" },
     { name = "openai", specifier = "==3.37.0" },
     { name = "overtone-core", editable = "packages/core" },
     { name = "platformdirs", specifier = "==4.13.5" },

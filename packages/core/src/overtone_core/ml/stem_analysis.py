@@ -13,9 +13,8 @@ matches every other silent stem. Window 0 is always the full audio.
 
 Separation is deterministic: Demucs' default "shift trick" (apply_model
 shifts=1) offsets the input by a random amount on every call, so the same
-track gave different stems each run - drum embeddings agreed as little as
-cosine 0.69 between runs. shifts=0 makes separation exactly repeatable; the
-trick's ~0.2 dB SDR gain doesn't matter for embeddings.
+track gets different stems each run. shifts=0 makes separation exactly
+repeatable; the trick's ~0.2 dB SDR gain doesn't matter for embeddings.
 
 Needs torch, Demucs and MuQ; the models load on first use (GPU if present),
 once per process. Loads the official htdemucs checkpoint from Ultimate Vocal
@@ -34,11 +33,10 @@ import soundfile as sf
 import torch
 import torchaudio.functional as AF
 
-from .stems import CHANNELS, EMBED_DIMS, EMBED_MODEL, MIN_WINDOW_S, STEM_SR, STEMS
+from .stems import CHANNELS, DEMUCS_MODEL, EMBED_DIMS, EMBED_MODEL, MIN_WINDOW_S, STEM_SR, STEMS
 
 logger = logging.getLogger(__name__)
 
-DEMUCS_MODEL = "htdemucs"
 # Ultimate Vocal Remover's copy of the official checkpoint; None without LOCALAPPDATA
 # (e.g. Linux), rather than a path relative to the working directory
 UVR_DEMUCS_REPO = (
@@ -179,9 +177,9 @@ def get_separator():
 
 
 def get_embedder():
-    """One MuQ model per process, shared by every caller. Loading it a second
-    time in the same process ran a 16 GB machine out of RAM (the first copy's
-    memory isn't fully returned) and crashed the pipeline silently."""
+    """One MuQ model per process, shared by every caller: a second load
+    doesn't get the first copy's memory back and can exhaust a 16 GB machine,
+    killing the process silently."""
     return _shared("embedder", MuQEmbedder)
 
 
