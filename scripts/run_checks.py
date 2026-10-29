@@ -1,18 +1,18 @@
 """Runs locally what CI runs on every PR and push to main: pre-commit
-(ruff + hygiene hooks) over all files, pyright over src/, then both
-unit-test suites.
+(ruff + hygiene hooks) over all files, pyright over the app and core
+packages, then the unit tests.
 
     python scripts/run_checks.py
 """
 
-from _common import APP_VENV, REPO, run, venv_python
+from _common import REPO, run, venv_python
 
 
 def main():
-    python = venv_python(APP_VENV)
+    python = venv_python()
     steps = [
         ("pre-commit", [python, "-m", "pre_commit", "run", "--all-files"]),
-        # --pythonpath: resolve imports against the app venv, whatever python is on PATH
+        # --pythonpath: resolve imports against the repo venv, whatever python is on PATH
         ("pyright", [python, "-m", "pyright", "--pythonpath", python]),
         ("tests", [python, "-m", "pytest", "-q", "tests/unit"]),
     ]

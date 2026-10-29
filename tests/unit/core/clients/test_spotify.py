@@ -2,7 +2,7 @@ import json
 import urllib.error
 
 import pytest
-from stemsim.clients import spotify
+from overtone_core.clients import spotify
 
 
 @pytest.mark.parametrize(("retry_after", "waits"), [(3, True), (spotify.MAX_RETRY_AFTER_S + 1, False)])

@@ -6,7 +6,7 @@ running right now, disk use, and the latest line of each stage log.
 
 import shutil
 
-from _common import LOG_DIR, RESEARCH, RESEARCH_VENV, run, running_stages, venv_python
+from _common import LOG_DIR, RESEARCH, run, running_stages, venv_python
 
 
 def last_progress_line(path):
@@ -19,7 +19,7 @@ def last_progress_line(path):
 
 
 def main():
-    code = run([venv_python(RESEARCH_VENV), "-m", "stemsim", "status"], cwd=RESEARCH)
+    code = run([venv_python(), "-m", "stemsim", "status"], cwd=RESEARCH)
 
     held = running_stages()
     print("\nRunning now:", ", ".join(held) if held else "nothing")

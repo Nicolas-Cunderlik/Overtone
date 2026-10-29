@@ -16,7 +16,8 @@ release materials on acceptance - until then these tracks resolve to
 
 import csv
 
-from ..clients.http import download
+from overtone_core.clients.http import download
+
 from ..schema import PERCEPTUAL, TRIPLET, TRIPLET_AGREEMENT, Judgment, Membership, NormalizedDataset, Track
 from .base import DatasetAdapter
 

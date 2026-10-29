@@ -26,7 +26,7 @@ actually ships. Its classifier is fit on the train split only. It's trained on
 genre, so part of its genre-precision gain is by construction; subgenre
 precision is the fairer read.
 
-Run: python -m overtone.ml.evaluate
+Run: python -m overtone_core.ml.evaluate
 """
 
 from collections import Counter

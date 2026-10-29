@@ -60,12 +60,12 @@ import time
 import mlflow
 import numpy as np
 import pandas as pd
+from overtone_core.ml.stems import CHANNELS
 from scipy.optimize import minimize
 from scipy.stats import spearmanr
 
 from .. import config, tracking
 from ..registry import Registry
-from ..schema import CHANNELS
 from . import report
 
 logger = logging.getLogger(__name__)
@@ -333,7 +333,7 @@ def fixed_models(D):
 
 def app_model_scores(rows):
     """Current app similarity (Spotify features + genre embedding) for pilot tracks."""
-    from overtone.ml.similarity_model import SimilarityModel
+    from overtone_core.ml.similarity_model import SimilarityModel
 
     model = SimilarityModel()
     Z = model.Z / np.linalg.norm(model.Z, axis=1, keepdims=True)

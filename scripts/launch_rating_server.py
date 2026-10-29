@@ -13,7 +13,7 @@ import argparse
 import threading
 import webbrowser
 
-from _common import RESEARCH, RESEARCH_VENV, run, venv_python
+from _common import RESEARCH, run, venv_python
 
 DEFAULT_PORT = 8765  # stemsim.config.RATING_PORT; scripts are stdlib-only, so it can't be imported
 
@@ -27,7 +27,7 @@ def main():
     if not args.no_browser:
         threading.Timer(3.0, webbrowser.open, [url]).start()
     print(f"Rating app on {url} (Ctrl+C to stop)")
-    command = [venv_python(RESEARCH_VENV), "-m", "stemsim", "rate", "--port", str(args.port), *server_args]
+    command = [venv_python(), "-m", "stemsim", "rate", "--port", str(args.port), *server_args]
     return run(command, cwd=RESEARCH)
 
 

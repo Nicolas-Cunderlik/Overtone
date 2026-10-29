@@ -23,10 +23,10 @@ import json
 import logging
 import time
 
-from overtone.ml import dedup
-from overtone.secrets import get_secret
+from overtone_core.clients.http import NETWORK_ERRORS, RateLimiter, http_get
+from overtone_core.ml import dedup
+from overtone_core.secrets import get_secret
 
-from ..clients.http import NETWORK_ERRORS, RateLimiter, http_get
 from ..schema import BEHAVIORAL, NDCG, PAIR, Judgment, Membership, NormalizedDataset, song_track, song_track_id
 from .base import DatasetAdapter, write_json_atomic
 

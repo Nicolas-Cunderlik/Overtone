@@ -4,8 +4,8 @@ app to score candidates against.
 
     python -m stemsim index --weights-run <stem-weights MLflow run id>
 
-Writes models/stem-muq/vN/ (overtone.ml.model_store) with the files named in
-overtone.ml.paths:
+Writes models/stem-muq/vN/ (overtone_core.ml.model_store) with the files named in
+overtone_core.ml.paths:
   tracks.csv      one row per song, in the order of every array below:
                   track_id (registry), spotify_track_id, title, artist
   <channel>.npy   (songs, 512) float16 unit vectors of the full preview,
@@ -24,18 +24,16 @@ import logging
 
 import numpy as np
 import pandas as pd
-
-from overtone.ml import model_store
-from overtone.ml.paths import MODELS_DIR, STEM_CHANNEL_FILE, STEM_LEVELS_FILE, STEM_MODEL, STEM_TRACKS_FILE
+from overtone_core.ml import model_store
+from overtone_core.ml.paths import MODELS_DIR, STEM_CHANNEL_FILE, STEM_LEVELS_FILE, STEM_MODEL, STEM_TRACKS_FILE
+from overtone_core.ml.stems import CHANNELS, EMBED_DIMS
 
 from . import config
 from .registry import DONE
-from .schema import CHANNELS
 
 logger = logging.getLogger(__name__)
 
 DATASET = "spotify_catalog"
-EMBED_DIMS = 512
 FULL_AUDIO = 0  # window index of the full preview in every embedding file (embed.py)
 CHECK_QUERIES = 200
 CHECK_TOP_K = 10

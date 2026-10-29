@@ -2,8 +2,7 @@
 
 Data and trained models live outside the package, at the project root:
 data/ holds the downloaded dataset, models/<model>/<version>/ each trained
-model (model_store.py; the app's version is bundled into the exe under the same
-relative path). A builder writes a version and a loader reads it, so model
+model (model_store.py). A builder writes a version and a loader reads it, so model
 names, pinned versions and filenames live here as the contract between the two.
 """
 
@@ -20,7 +19,8 @@ MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
 FEATURE_MODEL = "feature-knn"  # Spotify audio features + genre embedding, cosine kNN (train.py)
 FEATURE_MODEL_VERSION = "v1"
 STEM_MODEL = "stem-muq"  # MuQ-MuLan embeddings of the mix and Demucs stems, fitted channel weights
-# (built by research/stem_similarity: python -m stemsim index)
+# (built by research/stem_similarity: python -m stemsim index; loaded by stem_model.py)
+STEM_MODEL_VERSION = "v1"
 
 # feature-knn files
 INDEX_FILE = "index.joblib"  # NearestNeighbors fit on the embedding

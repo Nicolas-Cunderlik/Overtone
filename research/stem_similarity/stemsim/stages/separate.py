@@ -17,14 +17,8 @@ stage's job. Output: data/stems/<h[:2]>/<h>/<stem>.flac (h = hash of the
 track id), written to a temp dir and renamed so a crash never leaves partial
 stems.
 
-Determinism: Demucs' default "shift trick" (apply_model shifts=1) offsets the
-input by a random amount on every call, so the same track gave different
-stems each run - drum embeddings agreed as little as cosine 0.69 between
-runs (the pilot was affected). shifts=0 makes separation exactly repeatable;
-the trick's ~0.2 dB SDR gain doesn't matter for embeddings.
-
-Needs the research venv (torch + demucs). Loads the official htdemucs
-checkpoint from Ultimate Vocal Remover's model folder when present.
+Separation itself is overtone_core.ml.stem_analysis (deterministic, the
+same code the app runs on live songs).
 """
 
 import hashlib
@@ -33,30 +27,21 @@ import logging
 import os
 import shutil
 import time
-from pathlib import Path
 
-import numpy as np
 import soundfile as sf
-import torch
-import torchaudio.functional as AF
-from demucs.apply import apply_model
-from demucs.pretrained import get_model
+from overtone_core.ml.stem_analysis import get_separator, load_audio
+from overtone_core.ml.stems import STEM_SR, STEMS
 
 from .. import config
 from ..registry import DONE, FAILED
-from ..schema import STEMS
 
 logger = logging.getLogger(__name__)
 
 STAGE = config.SEPARATE_STAGE
 REQUIRES = config.AUDIO_STAGE
-STEM_SR = 24_000
 MIN_SECONDS = 1.0
 STEM_FORMAT = {"format": "FLAC", "subtype": "PCM_16"}
 STEM_EXT = "flac"
-UVR_DEMUCS_REPO = (
-    Path(os.environ.get("LOCALAPPDATA", "")) / "Programs/Ultimate Vocal Remover/models/Demucs_Models/v3_v4_repo"
-)
 
 
 def track_hash(track_id):
@@ -66,53 +51,6 @@ def track_hash(track_id):
 def stem_dir(registry, track_id):
     h = track_hash(track_id)
     return registry.data_dir / "stems" / h[:2] / h
-
-
-def load_audio(path):
-    """(2, samples) float32 at the file's own rate."""
-    wav, sr = sf.read(path, dtype="float32", always_2d=True)
-    wav = wav.T
-    if wav.shape[0] == 1:
-        wav = np.repeat(wav, 2, axis=0)
-    return wav[:2], sr
-
-
-class Separator:
-    def __init__(self, device=None):
-        self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        if (UVR_DEMUCS_REPO / "htdemucs.yaml").exists():
-            model = get_model("htdemucs", repo=UVR_DEMUCS_REPO)
-        else:
-            model = get_model("htdemucs")
-        self.model = model.to(self.device).eval()
-
-    def __call__(self, wav, sr):
-        """{stem: mono tensor at STEM_SR} for a (2, samples) array."""
-        x = torch.from_numpy(wav).to(self.device)
-        if sr != self.model.samplerate:
-            x = AF.resample(x, sr, self.model.samplerate)
-        ref = x.mean(0)
-        mean, std = ref.mean(), ref.std() + 1e-8  # Demucs expects normalized input
-        with torch.no_grad():
-            out = apply_model(
-                self.model, ((x - mean) / std)[None], device=self.device, shifts=0, split=True, overlap=0.25
-            )[0]
-        out = out * std + mean
-        return {
-            name: AF.resample(out[i].mean(0), self.model.samplerate, STEM_SR)
-            for i, name in enumerate(self.model.sources)
-        }
-
-
-_SEPARATOR = None
-
-
-def get_separator():
-    """One Separator per process, reused across datasets (see embed.get_embedder)."""
-    global _SEPARATOR
-    if _SEPARATOR is None:
-        _SEPARATOR = Separator()
-    return _SEPARATOR
 
 
 def run(registry, dataset=None, limit=None):

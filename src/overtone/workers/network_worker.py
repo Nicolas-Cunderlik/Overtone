@@ -1,7 +1,6 @@
-"""Worker thread to fetch album image bytes, similar tracks, and AI chord suggestions.
+"""Worker thread to fetch album image bytes and AI chord suggestions.
 Emits raw bytes for the UI thread to convert to QPixmap (QPixmap isn't thread-safe everywhere).
-Similar tracks (a local lookup) run before the AI call, which can take several
-seconds with retries, so they aren't held up behind it.
+Similar tracks have their own worker (similarity_worker.py).
 """
 
 import logging
@@ -17,14 +16,12 @@ ALBUM_ART_TIMEOUT_S = 8
 class FetchDataWorker(QThread):
     album_bytes = pyqtSignal(bytes)
     ai_ready = pyqtSignal(object)  # ChordSuggestions, or None if unavailable
-    similar_ready = pyqtSignal(list)
     error = pyqtSignal(str)
 
-    def __init__(self, spotify_track, ai_service, similarity_service, parent=None):
+    def __init__(self, spotify_track, ai_service, parent=None):
         super().__init__(parent)
         self.track = spotify_track
         self.ai_service = ai_service
-        self.similarity_service = similarity_service
 
     def run(self):
         try:
@@ -39,15 +36,6 @@ class FetchDataWorker(QThread):
                 self.album_bytes.emit(resp.content)
             except Exception:
                 logger.exception("Failed to fetch album image")
-
-            # Similar tracks
-            try:
-                if self.similarity_service:
-                    track_id = self.track.get('id')
-                    similar = self.similarity_service.find_similar(track_id, k=3)
-                    self.similar_ready.emit(similar)
-            except Exception:
-                logger.exception("Failed to fetch similar tracks")
 
             # AI suggestions
             try:

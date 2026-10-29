@@ -32,8 +32,9 @@ the pilot preview's seconds 10-20.
 import hashlib
 import json
 
+from overtone_core.ml.stems import CHANNELS
+
 from .. import config
-from ..schema import CHANNELS
 
 A, B, TIE, BAD_CLIP = "a", "b", "tie", "bad_clip"
 CHOICES = (A, B, TIE, BAD_CLIP)

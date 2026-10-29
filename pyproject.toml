@@ -11,26 +11,26 @@ license = "LicenseRef-Proprietary"
 license-files = ["LICENSE"]
 authors = [{ name = "Nicolas Cunderlik", email = "nicolas7cunderlik@gmail.com" }]
 requires-python = ">=3.13"
-# An application, not a library: exact pins so every install runs what was tested
+# An application, not a library: exact pins so every install runs what was tested.
+# The single uv.lock at the repo root pins the whole workspace (app, core, research).
 dependencies = [
+    "overtone-core",
+    "numpy==2.5.4",
     "PyQt5==5.15.11",
     "requests==2.34.2",
     "spotipy==2.26.0",
     "openai==3.37.0",
     "pydantic==2.14.1",
-    "pandas==3.1.0",
-    "numpy==2.5.4",
-    "scikit-learn==1.9.1",
-    "joblib==1.6.0",
     "platformdirs==4.13.5",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
+# `uv sync` installs this group: the dev environment is the app plus the research pipeline
 dev = [
+    "stemsim",
     "pytest==9.1.1",
     "pre-commit==4.7.0",
     "ruff==0.17.2",  # keep in step with the rev in .pre-commit-config.yaml
-    "pyinstaller==6.22.3",
     "pyright==1.1.414",  # same engine as Pylance; needs Node.js (fetched automatically if missing)
 ]
 
@@ -43,10 +43,40 @@ where = ["src"]
 [tool.setuptools.package-data]
 overtone = ["assets/*"]
 
+[tool.uv.workspace]
+members = ["packages/core", "research/stem_similarity"]
+
+[tool.uv]
+# Resolve for the two platforms in use: Windows (the app, dev) and Linux (CI)
+environments = ["sys_platform == 'win32'", "sys_platform == 'linux'"]
+
+[tool.uv.sources]
+overtone-core = { workspace = true }
+stemsim = { workspace = true }
+# CUDA build on Windows; CPU build on Linux CI, which has no GPU
+torch = [
+    { index = "pytorch-cu126", marker = "sys_platform == 'win32'" },
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+]
+torchaudio = [
+    { index = "pytorch-cu126", marker = "sys_platform == 'win32'" },
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.pyright]
-# Basic mode over the app package. Windows is the only target, so ctypes.windll & co. resolve
-# even when CI runs on Linux.
-include = ["src"]
+# Basic mode over the app and core packages. Windows is the only target, so ctypes.windll & co.
+# resolve even when CI runs on Linux.
+include = ["src", "packages/core/src"]
 pythonVersion = "3.13"
 pythonPlatform = "Windows"
 typeCheckingMode = "basic"
@@ -67,6 +97,8 @@ select = ["E", "W", "F", "I", "B", "UP", "S"]
 "research/**" = ["S310", "S311", "S603"]
 "research/**/tests/**" = ["S101"]
 "tests/unit/research/**" = ["S311"]  # seeded RNGs exercise the research samplers
+# Service clients call fixed https APIs
+"packages/core/src/overtone_core/clients/**" = ["S310"]
 # Utility scripts launch fixed commands (venv python, git, mlflow) by design
 "scripts/**" = ["S603", "S607"]
 

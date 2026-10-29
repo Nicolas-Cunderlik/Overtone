@@ -3,6 +3,7 @@
 import logging
 import os
 import re
+import time
 
 from PyQt5.QtCore import QEvent, Qt, QTimer
 from PyQt5.QtGui import QBrush, QColor, QFont, QFontDatabase, QIcon, QPainter, QPixmap
@@ -17,6 +18,7 @@ from ..services.spotify_service import SpotifyService
 from ..utils.logging_config import configure_logging
 from ..workers.network_worker import FetchDataWorker
 from ..workers.playback_worker import PlaybackPollWorker, PlayTrackWorker
+from ..workers.similarity_worker import SimilarTracksWorker
 from . import theme
 from .clickable_list import ClickableListBox
 from .fullscreen_image import FullscreenImageWindow
@@ -37,7 +39,7 @@ IDLE_GRACE_POLLS = 3
 # After a click-to-play, how long to wait before re-polling - long enough for
 # Spotify to report the new track as current
 PLAY_REFRESH_DELAY_MS = 700
-# Longest the window waits on close for an in-flight playback poll
+# Longest the window waits on close for running workers, all together
 SHUTDOWN_WAIT_MS = 6000
 
 # Docking is event-driven (WinEventHook on Spotify's window); this slow poll
@@ -211,6 +213,7 @@ class SpotifyApp(QWidget):
         # State
         self.last_song_id = None
         self.current_worker = None
+        self.current_similarity_worker = None
         self._workers = []  # keeps superseded workers alive until they finish
         self._idle_streak = 0
         self._poll_worker = None
@@ -361,10 +364,24 @@ class SpotifyApp(QWidget):
         if self._spotify_hook is not None:
             self._spotify_hook.unhook()
             self._spotify_hook = None
-        # A QThread destroyed mid-request aborts the process; polls are short,
-        # and spotipy's own request timeout bounds this wait
-        if self._poll_worker is not None:
-            self._poll_worker.wait(SHUTDOWN_WAIT_MS)
+        # A QThread destroyed while running aborts the process. Ask every worker
+        # to stop (similar-tracks workers check between steps), then wait for
+        # all of them within one shared deadline.
+        workers = [w for w in (self._poll_worker, self._play_worker, *self._workers) if w is not None]
+        for worker in workers:
+            worker.requestInterruption()
+        deadline = time.monotonic() + SHUTDOWN_WAIT_MS / 1000
+        for worker in workers:
+            worker.wait(max(0, int((deadline - time.monotonic()) * 1000)))
+        still_running = [w for w in workers if w.isRunning()]
+        if still_running:
+            # A model load, a CPU analysis or an AI request can outlast the wait
+            # and can't be stopped mid-step. Exit without Qt's teardown, which
+            # would abort on the running thread; every cache is written via a
+            # temp file + rename, so nothing is left half-written.
+            logger.warning("Exiting with %d worker(s) still running", len(still_running))
+            logging.shutdown()
+            os._exit(0)
         super().closeEvent(a0)
         QApplication.quit()
 
@@ -453,6 +470,10 @@ class SpotifyApp(QWidget):
     def _show_idle(self):
         self.chord_box.set_idle()
         self.similar_tracks.set_idle()
+        # An analysis can outlast playback; drop its result rather than show it over the idle state
+        if self.current_similarity_worker is not None:
+            self.current_similarity_worker.requestInterruption()
+            self.current_similarity_worker = None
 
     def start_worker(self, track):
         # QThread.terminate() is unsafe if a worker is blocked in a network
@@ -462,10 +483,9 @@ class SpotifyApp(QWidget):
         try:
             self._chord_suggestions, self._chord_track = None, track
             self._album_bytes = None
-            worker = FetchDataWorker(track, self.ai_service, self.similarity_service)
+            worker = FetchDataWorker(track, self.ai_service)
             worker.album_bytes.connect(self.on_album_bytes)
             worker.ai_ready.connect(self.on_ai_ready)
-            worker.similar_ready.connect(self.on_similar_ready)
             worker.error.connect(self.on_worker_error)
             worker.finished.connect(lambda: self._workers.remove(worker))
             self._workers.append(worker)
@@ -473,6 +493,23 @@ class SpotifyApp(QWidget):
             worker.start()
         except Exception:
             logger.exception("Failed to start FetchDataWorker")
+        self._start_similarity_worker(track)
+
+    def _start_similarity_worker(self, track):
+        # A superseded analysis is asked to stop at its next step, so it
+        # doesn't hold the shared models while the new song waits
+        try:
+            if self.current_similarity_worker is not None:
+                self.current_similarity_worker.requestInterruption()
+            worker = SimilarTracksWorker(track, self.similarity_service)
+            worker.analyzing.connect(self.on_similarity_analyzing)
+            worker.similar_ready.connect(self.on_similar_ready)
+            worker.finished.connect(lambda: self._workers.remove(worker))
+            self._workers.append(worker)
+            self.current_similarity_worker = worker
+            worker.start()
+        except Exception:
+            logger.exception("Failed to start SimilarTracksWorker")
 
     def on_album_bytes(self, data: bytes):
         if self.sender() is not self.current_worker:
@@ -522,12 +559,20 @@ class SpotifyApp(QWidget):
         except Exception:
             logger.exception("Failed to update chord suggestions")
 
+    def on_similarity_analyzing(self, loads_models):
+        if self.sender() is not self.current_similarity_worker:
+            return
+        if loads_models:
+            self.similar_tracks.set_placeholders(["Analyzing...", "First song loads", "the models (~1 min)"])
+        else:
+            self.similar_tracks.set_placeholders(["Analyzing..."])
+
     def on_similar_ready(self, similar):
-        if self.sender() is not self.current_worker:
+        if self.sender() is not self.current_similarity_worker:
             return
         try:
-            if not similar:
-                self.similar_tracks.set_placeholders(["Not enough data", "for this track"])
+            if not similar:  # the reason is in the log
+                self.similar_tracks.set_placeholders(["Couldn't find", "similar tracks"])
                 return
             self.similar_tracks.set_items(
                 [

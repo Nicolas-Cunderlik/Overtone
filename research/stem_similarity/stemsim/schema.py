@@ -27,7 +27,7 @@ results are always reported per dataset and never averaged across targets.
 
 from dataclasses import dataclass, field
 
-from overtone.ml import dedup
+from overtone_core.ml import dedup
 
 TRIPLET = "triplet"
 PAIR = "pair"
@@ -43,12 +43,9 @@ TRIPLET_AGREEMENT = "triplet_agreement"  # share of triplets the model orders th
 SPEARMAN = "spearman"  # rank correlation of model similarity with pair scores
 NDCG = "ndcg"  # ranking quality per group, pair values as graded relevance
 
-# Facets - what a judgment compared
+# Facets - what a judgment compared: the whole song, one stem
+# (overtone_core.ml.stems.STEMS) or one musical attribute
 OVERALL = "overall"
-STEMS = ("drums", "bass", "vocals", "other")  # Demucs htdemucs stems
-# Embedding channels; fitted stem weights are positional, so every user takes this order
-MIX = "mix"
-CHANNELS = (MIX, *STEMS)
 ATTRIBUTE_FACETS = ("melody", "harmony", "rhythm", "voice", "timbre")  # MATCHA's musical attributes
 
 

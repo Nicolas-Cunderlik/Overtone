@@ -1,12 +1,10 @@
 import numpy as np
-import pytest
-
-torch = pytest.importorskip("torch")  # research venv only; CI's app venv has no torch
-
-from stemsim import config  # noqa: E402
-from stemsim.registry import DONE, UNAVAILABLE  # noqa: E402
-from stemsim.schema import CHANNELS, Track  # noqa: E402
-from stemsim.stages import embed  # noqa: E402
+import torch
+from overtone_core.ml.stems import CHANNELS, STEM_SR
+from stemsim import config
+from stemsim.registry import DONE, UNAVAILABLE
+from stemsim.schema import Track
+from stemsim.stages import embed
 
 
 def test_audio_too_short_for_a_window_is_unavailable_not_done(registry, add_dataset, monkeypatch):
@@ -19,7 +17,7 @@ def test_audio_too_short_for_a_window_is_unavailable_not_done(registry, add_data
         embed,
         "load_channels",
         lambda _registry, track_id, _separator: (
-            torch.zeros(len(CHANNELS), int(seconds[track_id] * embed.STEM_SR)),
+            torch.zeros(len(CHANNELS), int(seconds[track_id] * STEM_SR)),
             False,
         ),
     )

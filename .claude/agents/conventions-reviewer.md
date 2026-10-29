@@ -17,10 +17,11 @@ You review one diff for violations of this project's own rules. Correctness bugs
 - **Services:** external clients are created lazily; failures are caught and logged and return `None` or `[]`, never raised into the UI.
 - **Docking:** no direct `window.show()`.
 - **Network:** every request sets a timeout.
-- **Constants:** file locations and settings in `config.py`, UI colours and fonts in `ui/theme.py`, ML file locations in `ml/paths.py`; single-use constants in UPPER_CASE at the top of their module; nothing relative to the working directory.
-- **Secrets:** read only through `overtone.secrets.get_secret`; nothing logs or prints secrets or tokens; runtime state goes to `config.APP_DATA_DIR`.
-- **Dependencies:** new packages pinned exactly in `pyproject.toml` (or `research/stem_similarity/requirements.txt`).
-- **Tests:** a new module in `src/overtone/` gets `tests/unit/test_<module>.py`; unit tests don't touch the network, Win32 or trained artifacts; app-code tests set `OVERTONE_DATA_DIR` to a temp dir.
+- **Packages:** the app (`src/overtone`) and research (`research/stem_similarity/stemsim`) never import each other; code both need lives in `overtone_core` (`packages/core`), which imports neither.
+- **Constants:** one home per domain (app `config.py`, `overtone_core/config.py`, `stemsim/config.py`, `ui/theme.py`, `overtone_core/ml/paths.py`, `overtone_core/ml/stems.py`); single-use constants in UPPER_CASE at the top of their module; nothing relative to the working directory.
+- **Secrets:** read only through `overtone_core.secrets.get_secret`; nothing logs or prints secrets or tokens; runtime state goes to `config.APP_DATA_DIR`.
+- **Dependencies:** new packages pinned exactly in the `pyproject.toml` of the package that imports them, with `uv.lock` updated.
+- **Tests:** a new module gets `test_<module>.py` in its mirrored folder (`tests/unit/`, `tests/unit/core/`, `tests/unit/research/`); unit tests don't touch the network, Win32 or trained artifacts; app-code tests set `OVERTONE_DATA_DIR` to a temp dir.
 - **Scope creep:** changes unrelated to the branch's ticket (branch name `ssm-<N>/...`) are flagged as "unrequested".
 
 ## Output

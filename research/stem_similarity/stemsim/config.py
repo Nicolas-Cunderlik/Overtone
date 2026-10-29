@@ -8,10 +8,6 @@ ROOT = Path(__file__).resolve().parent.parent  # research/stem_similarity
 DATA_DIR = Path(os.environ.get("STEMSIM_DATA_DIR", ROOT / "data"))
 DB_FILE = "registry.sqlite"
 
-# Identifies the client to the APIs we call (Last.fm asks for an identifiable agent)
-USER_AGENT = "Overtone-research/0.1 (personal music-similarity research)"
-HTTP_TIMEOUT_S = 30
-
 # Stage names in the registry's stage_status. Kept here, not in the stage
 # modules, so reading results doesn't import torch.
 ISRC_STAGE = "isrc"

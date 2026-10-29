@@ -2,7 +2,7 @@
 can fetch that exact recording instead of matching by title.
 
 Tracks with a Spotify id are looked up in batches; the rest, and ids without
-an ISRC, are searched by artist + title under the audio stage's matching
+an ISRC, are searched by artist + title under overtone_core.matching's
 rules. Only tracks still without audio are looked up, and without --dataset,
 not tracks that only config.NO_AUDIO_DATASETS include.
 
@@ -14,13 +14,13 @@ Outcomes: `done` with detail {"isrc", "duration_s", "spotify_id",
 import json
 import logging
 
-from overtone.ml import dedup
+from overtone_core import matching
+from overtone_core.clients.http import NETWORK_ERRORS
+from overtone_core.clients.spotify import MAX_IDS_PER_REQUEST, SpotifyClient
+from overtone_core.ml import dedup
 
 from .. import config
-from ..clients.http import NETWORK_ERRORS
-from ..clients.spotify import MAX_IDS_PER_REQUEST, SpotifyClient
 from ..registry import DONE, FAILED, UNAVAILABLE
-from .audio import matching_hits
 
 logger = logging.getLogger(__name__)
 
@@ -84,8 +84,9 @@ def _search(client, track):
     hits = [hit for hit in (response.get("tracks") or {}).get("items") or [] if hit and _isrc(hit)]
     duration = json.loads(track["meta"]).get("duration_s")
     hit = next(
-        matching_hits(
-            track,
+        matching.matching_hits(
+            track["title"],
+            track["artist"],
             duration,
             hits,
             lambda h: h["name"],

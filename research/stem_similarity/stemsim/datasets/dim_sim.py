@@ -20,7 +20,8 @@ License: CC BY-NC 4.0 (non-commercial research use).
 import csv
 import tarfile
 
-from ..clients.http import download
+from overtone_core.clients.http import download
+
 from ..schema import PERCEPTUAL, TRIPLET, TRIPLET_AGREEMENT, Judgment, Membership, NormalizedDataset, song_track
 from .base import DatasetAdapter
 

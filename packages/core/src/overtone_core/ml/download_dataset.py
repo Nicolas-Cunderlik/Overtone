@@ -6,7 +6,7 @@ originally pulled from Spotify's audio-features endpoint via the spotifyr
 package by Kaylin Pavlik. ~28k unique tracks across 6 genres, CC0-licensed.
 https://github.com/rfordatascience/tidytuesday/tree/master/data/2020/2020-01-21
 
-Run: python -m overtone.ml.download_dataset
+Run: python -m overtone_core.ml.download_dataset
 """
 
 import os

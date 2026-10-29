@@ -39,23 +39,19 @@ flowchart LR
     end
 
     LLM["OpenAI"] --> CHORDS
-    KNN["Current model<br/>Spotify audio features + genre embedding, kNN"] --> SIM
-    FIT -.-> INDEX["Catalog stem index<br/>+ fitted weights"]
-    INDEX -.-> SIM
-    PLAY -.-> LIVE["Live analysis of the current song<br/>preview, stems, embeddings"]
-    LIVE -.-> SIM
-
-    classDef planned stroke-dasharray: 5 5
-    class INDEX,LIVE planned
+    FIT --> INDEX["Catalog stem index<br/>+ fitted weights"]
+    INDEX --> SIM
+    PLAY --> LIVE["Live analysis of the current song<br/>Deezer preview, stems, embeddings"]
+    LIVE --> SIM
 ```
 
-Dashed parts are planned. Today, Similar Tracks uses the audio-feature model; the stem model replaces it once it proves itself on held-out ratings.
+The research pipeline and the app share one package, `overtone_core` (`packages/core`): the Deezer lookup and the stem analysis that build the catalog index are the same code that analyses the song playing now, so the two are directly comparable.
 
 ## Features
 
 - **Docked panel**: sits to the left of the Spotify desktop app, shows and hides with its window, and follows playback.
 - **Chord progressions**: three progressions in the style of the current song, checked against music-theory rules (the model is re-asked when they fail) and cached for a day. Click one to save it as a MIDI file to Downloads.
-- **Similar tracks**: the three closest songs from a ~25.6k-song catalog, by Spotify audio features plus a learned genre embedding. Click one to play it (Spotify Premium) or open it in Spotify. Songs outside the catalog get no suggestions yet.
+- **Similar tracks**: the three closest songs from a ~20.7k-song catalog by how they sound: the mix and each stem compared separately, weighted by fitted stem weights. A song outside the catalog is analysed from its Deezer preview (about 1.5 s on a GPU once the models are loaded) and remembered. Click a result to play it (Spotify Premium) or open it in Spotify.
 - **Album cover view**: click the cover to scale it to your display (Esc or Space closes it).
 - **Responsive UI**: all Spotify, OpenAI and network calls run on worker threads.
 
@@ -69,8 +65,7 @@ The stem-similarity study (`research/stem_similarity`) has separated and embedde
 
 ## Roadmap
 
-- **Stem-based similar tracks**: a precomputed stem index for the catalog, live analysis of the current song from its preview, and the model packaged into the app.
-- **Similar tracks for any song**, not just the catalog.
+- **Installer**: a small setup program that installs the app, torch and the models with uv from the lock file.
 - **Faster ABX ratings**: a rating app that picks the most informative comparisons, in short sessions.
 - **Explanations and steering**: "recommended because: similar bass", and requests like "like this, but match the drums".
 - **Personal taste**: a producer-specific similarity layered on the population model.
@@ -81,56 +76,65 @@ The stem-similarity study (`research/stem_similarity`) has separated and embedde
 ## Requirements
 
 - Windows (the panel docks to Spotify's window through the Win32 API)
-- Python 3.13 and the Spotify desktop app
+- Python 3.13, [uv](https://docs.astral.sh/uv/) and the Spotify desktop app
 - A Spotify developer app (client ID/secret, redirect URI `http://127.0.0.1:<port>`) and an OpenAI API key
-- Research pipeline only: its own venv (`research/stem_similarity/requirements.txt`); a CUDA GPU makes separation and embedding practical
+- An NVIDIA GPU makes analysing songs outside the catalog fast (about 1.5 s per song on an RTX 3070); without one it runs on the CPU (about 35 s per song)
 
 ## Setup
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -e ".[dev]"
-pre-commit install
-copy .env.example .env      # then fill in the keys
+uv sync                           # one .venv for the app and the research pipeline, from uv.lock (~3 GB with CUDA torch)
+.venv\Scripts\pre-commit install
+copy .env.example .env            # then fill in the keys
 ```
 
-Build the similarity model once (downloads an 8 MB public dataset into `data/`, trains into `models/` in about a minute):
+Similar tracks need the catalog stem index in `models/stem-muq/v1/`. There is no download for it yet (the planned installer will fetch it). Until then, build it with the research pipeline. That fetches about 30k Deezer previews, then separates and embeds them on a GPU, so it takes a long time. With the venv active (`.venv\Scripts\activate`):
 
 ```bash
-python -m overtone.ml.download_dataset
-python -m overtone.ml.train
+python -m overtone_core.ml.download_dataset      # the catalog's song list, into data/
+cd research/stem_similarity
+python -m stemsim ingest spotify_catalog         # the candidate songs
+python -m stemsim ingest dim_sim                 # the judgments the stem weights are fitted on...
+python -m stemsim ingest magnatagatune --with-audio
+python -m stemsim ingest listener_abx            # ...and the held-out ones
+python -m stemsim ingest ccmsim
+python -m stemsim isrc                           # Spotify ISRCs, so Deezer gives the exact recording
+python -m stemsim audio                          # previews
+python -m stemsim separate --dataset dim_sim     # stems kept on disk; repeat for magnatagatune, listener_abx, ccmsim
+python -m stemsim embed                          # mix + stem vectors for every track
+python -m stemsim.experiments.stem_weights       # fits the weights; the run id is in MLflow (scripts/launch_mlflow.py)
+python -m stemsim index --weights-run <run id>   # writes models/stem-muq/vN/
+```
+
+`STEM_MODEL_VERSION` in `packages/core/src/overtone_core/ml/paths.py` must name the version `index` wrote (`v1` on a first build). Without the index, Similar Tracks shows an error and `overtone --self-test` fails. Demucs and MuQ-MuLan download their weights on first use.
+
+The older feature model is kept as the evaluation baseline (downloads an 8 MB public dataset into `data/`, trains into `models/` in about a minute):
+
+```bash
+python -m overtone_core.ml.download_dataset
+python -m overtone_core.ml.train
 ```
 
 ## Run
 
 ```bash
 overtone                  # or: python -m overtone. The first run opens a Spotify login in the browser
-overtone --self-test      # headless check: loads the model, exits 0 if OK
+overtone --self-test      # headless check: loads the stem model and scores a catalog song, exits 0 if OK
 ```
 
-The login token, log and chord cache live in `%LOCALAPPDATA%\Overtone` (logs in `logs\overtone.log`).
-
-## Build a standalone exe
-
-```bash
-pyinstaller app.spec        # -> dist/Overtone.exe (bundles the trained model)
-dist\Overtone.exe --self-test
-```
-
-Put the `.env` next to the exe; secrets are never bundled.
+The login token, log, chord cache and the stem vectors of analysed songs live in `%LOCALAPPDATA%\Overtone` (logs in `logs\overtone.log`).
 
 ## Development
 
-- `pytest` runs the tests in `tests/`: `unit/` mirrors the package layout, and `unit/research/` covers the research pipeline.
+- `pytest` runs the tests in `tests/`: `unit/` mirrors the app package, `unit/core/` the shared core package and `unit/research/` the research pipeline.
 - `pre-commit run --all-files` runs the linters/formatter (ruff) and file hygiene hooks.
-- CI (`.github/workflows/ci.yml`) runs both on every pull request and every push to `main`.
-- `python -m overtone.ml.evaluate` compares similarity-model variants.
-- Dependencies are pinned in `pyproject.toml` (`dev` extra for tooling).
+- CI (`.github/workflows/ci.yml`) runs both, plus pyright, on every pull request and every push to `main`.
+- `python -m overtone_core.ml.evaluate` compares feature-model variants.
+- Dependencies are pinned in each package's `pyproject.toml` and locked for the whole workspace in `uv.lock`: after changing one, run `uv lock` and `uv sync`.
 
 ### Utility scripts
 
-Run with any Python - each finds the right virtualenv itself:
+Run with any Python - each uses the repo's virtualenv itself:
 
 | Script | What it does |
 |---|---|
@@ -144,22 +148,25 @@ Run with any Python - each finds the right virtualenv itself:
 
 ```
 src/overtone/               the app package (python -m overtone)
-  config.py                   where files live: assets, models, .env, app data
-  auth.py                     secrets from .env; Spotify / OpenAI clients
+  config.py                   where the app's files live: assets, app data, caches
+  auth.py                     Spotify / OpenAI clients
   assets/                     icon and title font
   ui/                         main window, title bar, list boxes, fullscreen cover, theme
-  workers/                    QThreads: playback polling/control, data fetching
-  services/                   Spotify, OpenAI chord suggestions (+cache), similarity, Win32 window tracking
+  workers/                    QThreads: playback polling/control, data fetching, similar tracks
+  services/                   Spotify, OpenAI chord suggestions (+cache), similar tracks (+stem cache), Win32 window tracking
   music/                      chord-progression schema/validation, MIDI export
-  ml/                         similarity model: dataset download, dedup, features, embedding, train/evaluate
-research/stem_similarity/   stem-similarity study (own venv: torch, Demucs, MuQ, MLflow)
-  stemsim/                    datasets, registry, stages (audio, separate, embed), experiments
+packages/core/              overtone_core: shared by the app and the research pipeline
+  ml/                         stem model (contract, analysis, scoring), model store, dedup, feature model (baseline)
+  clients/                    Deezer and Spotify API clients, HTTP plumbing
+  matching.py                 whether a search hit is the recording asked for
+  secrets.py, config.py       API keys from .env; repo root, HTTP settings
+research/stem_similarity/   stem-similarity study (stemsim)
+  stemsim/                    datasets, registry, stages (isrc, audio, separate, embed), index, experiments, rating app
 scripts/                    standard-library launchers (see above)
 data/                       downloaded dataset (gitignored)
-models/                     trained model artifacts (gitignored, bundled into the exe)
-tests/                      unit/ (mirrors src/overtone/; unit/research/ for the pipeline) and integration/
-run.py                      PyInstaller entry script
-app.spec                    PyInstaller build
+models/                     model versions, models/<model>/<version>/ (gitignored)
+tests/                      unit/ (mirrors src/overtone/; unit/core/ and unit/research/ for the other packages) and integration/
+uv.lock                     exact versions for the whole workspace
 ```
 
 ## License

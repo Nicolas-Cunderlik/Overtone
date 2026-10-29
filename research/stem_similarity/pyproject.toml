@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stemsim"
+version = "0.1.0"
+description = "Stem-similarity research pipeline: datasets, audio, stems, embeddings, experiments and the ABX rating app."
+license = "LicenseRef-Proprietary"
+authors = [{ name = "Nicolas Cunderlik", email = "nicolas7cunderlik@gmail.com" }]
+requires-python = ">=3.13"
+dependencies = [
+    "overtone-core",
+    "numpy==2.5.4",
+    "pandas==3.1.0",
+    "scipy==1.18.1",
+    "scikit-learn==1.9.1",
+    "soundfile==0.14.0",
+    "librosa==1.0.0",
+    "mlflow==3.17.2",
+    "fastmcp==3.4.11",
+    "faster-whisper==1.2.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["stemsim*"]
+
+[tool.setuptools.package-data]
+stemsim = ["experiments/*.md", "rating/*.html"]
