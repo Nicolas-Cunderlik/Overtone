@@ -15,34 +15,38 @@ WEIGHTS = {
 }
 
 
-@pytest.fixture
-def embed(registry):
-    """embed(track, scale, rms_db): writes an embedding file whose full-audio
-    window is `scale` everywhere, plus a 10-20 s excerpt window, and marks it done."""
+def embed(registry, track, hot_dim=0, rms_db=-20.0, n_windows=2, channels=CHANNELS):
+    """Writes an embedding file and marks it done. Window 0 (the full audio) is
+    3 * one-hot at `hot_dim` in every channel at `rms_db`; window 1 (an excerpt)
+    points at the last dim at 0 dB, so tests can tell which window was read."""
+    emb = np.zeros((2, len(CHANNELS), index.EMBED_DIMS), np.float32)
+    emb[0, :, hot_dim] = 3.0
+    emb[1, :, -1] = 1.0
+    levels = np.array([[rms_db] * len(CHANNELS), [0.0] * len(CHANNELS)], np.float32)
+    windows = np.array([[0.0, 30.0], [10.0, 20.0]])
+    relative = f"embeddings/{abs(hash(track.track_id))}.npz"
+    (registry.data_dir / "embeddings").mkdir(exist_ok=True)
+    np.savez(
+        registry.data_dir / relative,
+        windows=windows[:n_windows],
+        channels=np.array(channels),
+        emb=emb[:n_windows],
+        rms_db=levels[:n_windows],
+    )
+    # Stored with "\" as on Windows
+    registry.set_status(track.track_id, config.EMBED_STAGE, DONE, artifact=relative.replace("/", "\\"))
 
-    def write(track, scale, rms_db=-20.0):
-        relative = f"embeddings/{abs(hash(track.track_id))}.npz"
-        path = registry.data_dir / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        emb = np.stack([np.full((len(CHANNELS), index.EMBED_DIMS), scale), np.ones((len(CHANNELS), index.EMBED_DIMS))])
-        windows = np.array([[0.0, 30.0], [10.0, 20.0]])
-        levels = np.full((2, len(CHANNELS)), rms_db)
-        np.savez(path, windows=windows, channels=np.array(CHANNELS), emb=emb.astype(np.float32), rms_db=levels)
-        registry.set_status(track.track_id, config.EMBED_STAGE, DONE, artifact=relative.replace("/", "\\"))
 
-    return write
-
-
-def test_build_writes_catalog_songs_in_row_order(registry, add_dataset, embed, tmp_path):
+def test_build_writes_catalog_songs_full_audio_in_row_order(registry, add_dataset, tmp_path):
     b_song = song_track("B Song", "Artist", spotify_track_id="sp-b")
     a_song = song_track("A Song", "Artist", spotify_track_id="sp-a")
     failed = song_track("Broken", "Artist", spotify_track_id="sp-x")
     add_dataset("spotify_catalog", [b_song, a_song, failed])
     other = song_track("Elsewhere", "Artist")
     add_dataset("dim_sim", [other])  # embedded, but not a catalog song
-    embed(b_song, 2.0, rms_db=-60.0)
-    embed(a_song, 3.0)
-    embed(other, 1.0)
+    embed(registry, b_song, hot_dim=2, rms_db=-60.0)
+    embed(registry, a_song, hot_dim=1)
+    embed(registry, other)
     registry.set_status(failed.track_id, config.EMBED_STAGE, FAILED, "corrupt")
 
     built = index.build(registry, WEIGHTS, silent_db=-45.0, source={"weights_run": "run1"}, root=tmp_path)
@@ -51,13 +55,13 @@ def test_build_writes_catalog_songs_in_row_order(registry, add_dataset, embed, t
     tracks = pd.read_csv(built.path / "tracks.csv")
     assert tracks["spotify_track_id"].tolist() == ["sp-a", "sp-b"]  # sorted by track_id; failed one skipped
     assert tracks["title"].tolist() == ["A Song", "B Song"]
+    unit_full_audio = np.zeros((2, index.EMBED_DIMS), np.float16)
+    unit_full_audio[0, 1] = unit_full_audio[1, 2] = 1.0
     for channel in CHANNELS:
         vectors = np.load(built.path / f"{channel}.npy")
-        assert vectors.shape == (2, index.EMBED_DIMS)
         assert vectors.dtype == np.float16
-        np.testing.assert_allclose(np.linalg.norm(vectors.astype(np.float32), axis=1), 1.0, atol=1e-3)
-    levels = np.load(built.path / "rms_db.npy")
-    np.testing.assert_array_equal(levels[:, 0], [-20.0, -60.0])  # full-audio window, in row order
+        np.testing.assert_array_equal(vectors, unit_full_audio)
+    np.testing.assert_array_equal(np.load(built.path / "rms_db.npy")[:, 0], [-20.0, -60.0])
 
     manifest = model_store.read_manifest("stem-muq", "v1", root=tmp_path)
     params = manifest["params"]
@@ -72,22 +76,16 @@ def test_build_writes_catalog_songs_in_row_order(registry, add_dataset, embed, t
 
 def test_build_refuses_an_empty_catalog(registry, tmp_path):
     with pytest.raises(ValueError, match="no spotify_catalog songs"):
-        index.build(registry, WEIGHTS, silent_db=-45.0, source={}, root=tmp_path)
-    assert model_store.versions("stem-muq", root=tmp_path) == []
+        index.build(registry, WEIGHTS, silent_db=-45.0, source={}, root=tmp_path / "models")
+    assert model_store.versions("stem-muq", root=tmp_path / "models") == []
 
 
-def test_build_rejects_an_embedding_without_the_full_audio(registry, add_dataset, tmp_path):
+@pytest.mark.parametrize("bad", [{"n_windows": 0}, {"channels": CHANNELS[::-1]}], ids=["no_windows", "channel_order"])
+def test_build_rejects_an_embedding_it_cannot_read_as_full_audio_per_channel(registry, add_dataset, tmp_path, bad):
     song = song_track("Stub", "Artist", spotify_track_id="sp-s")
     add_dataset("spotify_catalog", [song])
-    np.savez(
-        tmp_path / "empty.npz",
-        windows=np.zeros((0, 2)),
-        channels=np.array(CHANNELS),
-        emb=np.zeros((0, len(CHANNELS), index.EMBED_DIMS)),
-        rms_db=np.zeros((0, len(CHANNELS))),
-    )
-    registry.set_status(song.track_id, config.EMBED_STAGE, DONE, artifact="empty.npz")
+    embed(registry, song, **bad)
 
-    with pytest.raises(ValueError, match="0 windows"):
+    with pytest.raises(ValueError, match="at least the full audio"):
         index.build(registry, WEIGHTS, silent_db=-45.0, source={}, root=tmp_path / "models")
     assert model_store.versions("stem-muq", root=tmp_path / "models") == []

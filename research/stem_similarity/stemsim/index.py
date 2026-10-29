@@ -16,9 +16,8 @@ z_std and silent_db - everything scoring needs besides the files.
 
 A later facet (melody, DSP) adds a file and a channel name, not a new format.
 
-Read-only on the registry. Scoring is brute force: 20.7k songs x 5 channels x
-512 dims is ~53M multiply-adds per query, tens of ms in numpy. An ANN
-shortlist only pays off at a few hundred thousand songs or more.
+Read-only on the registry. Scoring is brute force (tens of ms per query in
+numpy); an ANN shortlist only pays off at a few hundred thousand songs.
 """
 
 import logging
