@@ -1,4 +1,5 @@
-"""Loads the artifacts produced by train.py and serves nearest-neighbor lookups.
+"""Loads a feature-knn version written by train.py (by default the one pinned in
+paths.py) and serves nearest-neighbor lookups.
 
 Two ways in:
   - find_similar(track_id): a song in the static training catalog, looked up
@@ -26,11 +27,12 @@ import os
 import joblib
 import pandas as pd
 
-from . import dedup, embedding, features
+from . import dedup, embedding, features, model_store
 from .paths import (
-    ARTIFACT_DIR,
     CLASSIFIER_FILE,
     EMBEDDING_FILE,
+    FEATURE_MODEL,
+    FEATURE_MODEL_VERSION,
     FEATURES_FILE,
     INDEX_FILE,
     SCALER_FILE,
@@ -46,7 +48,9 @@ DUPLICATE_MARGIN = 5
 
 
 class SimilarityModel:
-    def __init__(self, artifact_dir=ARTIFACT_DIR):
+    def __init__(self, artifact_dir=None):
+        artifact_dir = artifact_dir or model_store.version_dir(FEATURE_MODEL, FEATURE_MODEL_VERSION)
+
         def load(name):
             return joblib.load(os.path.join(artifact_dir, name))
 

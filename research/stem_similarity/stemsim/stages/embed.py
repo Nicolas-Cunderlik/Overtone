@@ -12,6 +12,10 @@ Per window and channel (mix, drums, bass, vocals, other): a 512-d embedding
 and the RMS level in dB (for silence gating - a near-silent stem's embedding
 is meaningless and matches every other silent stem).
 
+A track whose audio is shorter than MIN_WINDOW_S (e.g. a ~1 s stub Deezer
+serves instead of a preview) is recorded as unavailable, so `done` always
+means window 0 holds the full audio.
+
 Stems come from the separate stage's FLACs for perceptual datasets; for the
 rest (the catalog - the candidate pool) this stage separates in memory and
 keeps only the vectors (see separate.py for why). A track that has stems on
@@ -33,7 +37,7 @@ import torch
 import torchaudio.functional as AF
 
 from .. import config
-from ..registry import DONE, FAILED
+from ..registry import DONE, FAILED, UNAVAILABLE
 from ..schema import CHANNELS, STEMS
 from .separate import STAGE as SEPARATE_STAGE
 from .separate import STEM_EXT, STEM_SR, get_separator, load_audio, track_hash
@@ -128,6 +132,8 @@ def _embed_one(registry, embedder, separator, track_id):
             (start, min(end, duration)) for start, end in registry.clip_windows(track_id) if start < duration
         ]
         windows = [w for w in dict.fromkeys(windows) if w[1] - w[0] >= MIN_WINDOW_S]
+        if not windows:  # clips lie inside the full audio, so it's too short too
+            return UNAVAILABLE, f"audio is {duration:.3g} s, shorter than {MIN_WINDOW_S:g} s", None
         emb = np.zeros((len(windows), len(CHANNELS), 512), np.float32)
         levels = np.zeros((len(windows), len(CHANNELS)), np.float32)
         for w, (start, end) in enumerate(windows):
