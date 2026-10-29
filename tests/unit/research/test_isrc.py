@@ -90,3 +90,13 @@ def test_network_errors_fail_and_are_retried_next_run(registry):
 
     isrc.run(registry, client=FakeSpotify([spotify_track("sp1", "Song")]))
     assert registry.status(track.track_id, config.ISRC_STAGE)[0] == DONE
+
+
+def test_lastfm_only_tracks_are_looked_up_only_when_named(registry, add_dataset):
+    track = song_track("Song", "Artist", spotify_track_id="sp1")
+    add_dataset("lastfm", [track])
+    client = FakeSpotify([spotify_track("sp1", "Song")])
+
+    assert isrc.run(registry, client=client) == {}
+    assert client.calls == []
+    assert isrc.run(registry, dataset="lastfm", client=client) == {DONE: 1}

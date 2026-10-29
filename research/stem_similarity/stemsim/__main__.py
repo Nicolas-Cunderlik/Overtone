@@ -5,8 +5,9 @@
   python -m stemsim ingest magnatagatune [--with-audio]
   python -m stemsim ingest ccmsim [--all-cultures]
   python -m stemsim ingest lastfm [--limit 500]      crawl 500 more seeds, then re-normalize
-  python -m stemsim isrc [--dataset lastfm] [--limit 1000]   Spotify ISRCs (Deezer audio waits for these)
-  python -m stemsim audio [--source deezer] [--dataset lastfm] [--limit 1000]
+  python -m stemsim isrc [--dataset dim_sim] [--limit 1000]  Spotify ISRCs (Deezer audio waits for these)
+  python -m stemsim audio [--source deezer] [--dataset dim_sim] [--limit 1000]
+                         isrc/audio skip Last.fm-only tracks unless --dataset lastfm is given
   python -m stemsim separate [--dataset dim_sim] [--limit 100]   Demucs stems (GPU)
   python -m stemsim embed [--dataset dim_sim] [--limit 100]      MuQ-MuLan vectors (GPU)
   python -m stemsim status                           per-dataset progress

@@ -110,3 +110,10 @@ def test_title_search_extra_words_need_close_durations(
     meta = {"duration_s": own_duration} if own_duration else {}
     (state, _, _), _ = resolve("C.R.E.A.M.", "Wu-Tang Clan", isrc_status, deezer, **meta)
     assert state == expected
+
+
+def test_lastfm_only_tracks_get_audio_only_when_named(registry, add_dataset):
+    add_dataset("lastfm", [song_track("Song", "Artist")])
+
+    assert audio.run(registry) == {}
+    assert audio.run(registry, dataset="lastfm") == {"waiting": 1}  # reached the resolver; no isrc status yet

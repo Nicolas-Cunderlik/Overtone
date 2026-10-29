@@ -337,6 +337,12 @@ The listener (project author) rates triplets.
   Last.fm raw   16.5 KB/seed x 25.6k                 ~0.4 GB, ~2.5 h
                 (31% of seeds get a list; similar songs outside the catalog
                 are NOT given audio - that would be ~150k songs / ~70 GB)
+                Decided 2026-10-28 (SSM-31): 106,750 Last.fm-only songs stay
+                without audio; isrc/audio skip them unless run with
+                --dataset lastfm (config.NO_AUDIO_DATASETS). T2 doesn't need
+                them: 120k of its 392k pairs already have audio on both
+                sides (92k embedded). Revisit with a capped sample if T2
+                scoring runs short.
   Deezer        467 KB/preview x ~24k catalog songs  ~11 GB, ~6 h
   MTAT          3.3 GB archive (+0.1 GB extracted clips; archive deletable)
   Stems         ~720 KB per song per 10 s window (5 OGGs) - kept only for

@@ -169,11 +169,20 @@ class Registry:
     # --- stage bookkeeping --------------------------------------------------
 
     def pending(
-        self, stage, audio_source=None, dataset=None, retry_failed=True, limit=None, requires=None, skip_done=None
+        self,
+        stage,
+        audio_source=None,
+        dataset=None,
+        retry_failed=True,
+        limit=None,
+        requires=None,
+        skip_done=None,
+        exclude_only_in=(),
     ):
         """Tracks with no final outcome for `stage` yet - and, with `requires`,
         only those whose `requires` stage is done (its output is the input);
-        with `skip_done`, not those already done for that stage."""
+        with `skip_done`, not those already done for that stage; with
+        `exclude_only_in`, only tracks some dataset outside that list includes."""
         final = (DONE, UNAVAILABLE) if retry_failed else (DONE, UNAVAILABLE, FAILED)
         placeholders = ",".join("?" * len(final))
         sql = f"""SELECT t.* FROM tracks t
@@ -194,6 +203,11 @@ class Registry:
         if dataset:
             sql += " AND EXISTS (SELECT 1 FROM memberships m WHERE m.track_id = t.track_id AND m.dataset = ?)"
             args.append(dataset)
+        if exclude_only_in:
+            # Uncorrelated, so SQLite builds the set once (memberships has no track_id index)
+            excluded = ",".join("?" * len(exclude_only_in))
+            sql += f" AND t.track_id IN (SELECT track_id FROM memberships WHERE dataset NOT IN ({excluded}))"  # noqa: S608 - placeholders only
+            args.extend(exclude_only_in)
         sql += " ORDER BY t.track_id"
         if limit:
             sql += " LIMIT ?"

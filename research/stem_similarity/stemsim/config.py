@@ -20,6 +20,13 @@ SEPARATE_STAGE = "separate"
 EMBED_MODEL = "muq-mulan-large"
 EMBED_STAGE = f"embed:{EMBED_MODEL}"
 
+# Datasets that bring no audio of their own: the isrc and audio stages skip
+# tracks that only these datasets include, unless the dataset is named
+# (--dataset lastfm). Last.fm-only similar songs would be ~107k Spotify
+# lookups and ~50 GB of previews, and T2 is scored among tracks that other
+# datasets already give audio to.
+NO_AUDIO_DATASETS = ("lastfm",)
+
 # Listener ratings. Committed (not under DATA_DIR): unlike everything else they
 # can't be regenerated.
 RATINGS_FILE = ROOT / "ratings.jsonl"
