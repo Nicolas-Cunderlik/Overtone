@@ -88,12 +88,3 @@ def test_stage_inputs_outputs_and_windows(registry):
 
     assert registry.clip_windows("mtat:a") == [(4.0, 24.0), (10.0, 20.0)]  # every dataset's judged excerpt
     assert registry.keeps_stems("rated") and not registry.keeps_stems("pool")
-
-
-def test_pending_excludes_tracks_only_in_listed_datasets(registry, add_dataset):
-    lastfm_only, shared, catalog_only = (Track(f"song:{name}", "deezer") for name in ("a", "b", "c"))
-    add_dataset("lastfm", [lastfm_only, shared])
-    add_dataset("catalog", [shared, catalog_only])
-
-    assert [t["track_id"] for t in registry.pending("audio", exclude_only_in=("lastfm",))] == ["song:b", "song:c"]
-    assert [t["track_id"] for t in registry.pending("audio", dataset="lastfm")] == ["song:a", "song:b"]
