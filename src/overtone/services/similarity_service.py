@@ -33,6 +33,7 @@ class SimilarityService:
         self._cache = cache or StemCache()
         self._model = None
         self._load_failed = False
+        self._analysed_one = False  # the first analysis also loads Demucs and MuQ
         # A superseded worker can still be running when the next one starts,
         # so two threads may reach the first lookup or an analysis at once
         self._load_lock = threading.Lock()
@@ -43,8 +44,9 @@ class SimilarityService:
         playback item), best first, each with per-channel scores (see
         StemModel.similar_to); None on any failure or if cancelled.
 
-        on_analyzing() is called before a song outside the catalog is
-        analysed (seconds on a GPU, longer on CPU). cancelled() is polled
+        on_analyzing(first) is called before a song outside the catalog is
+        analysed (seconds on a GPU, longer on CPU); `first` is True until an
+        analysis has succeeded, as that one also loads the models (~1 min). cancelled() is polled
         between the slow steps so a superseded request stops early."""
         cancelled = cancelled or (lambda: False)
         track_id, title = track.get("id"), track.get("name")
@@ -62,7 +64,7 @@ class SimilarityService:
                 source = "cache"
                 if vectors is None:
                     if on_analyzing:
-                        on_analyzing()
+                        on_analyzing(not self._analysed_one)
                     vectors = self._analyse_preview(track, title, artist, cancelled)
                     source = "analysis"
                 if vectors is None:
@@ -95,6 +97,7 @@ class SimilarityService:
             logger.info("No Deezer preview for %s - %s (isrc %s)", title, artist, isrc)
             return None
         hit, matched_by = match
+        logger.debug("Downloading Deezer preview %s (matched by %s)", hit.get("id"), matched_by)
         audio = deezer.preview_bytes(hit)
         if cancelled():
             return None
@@ -103,6 +106,7 @@ class SimilarityService:
                 return None
             started = time.monotonic()
             emb, rms_db = self._analyse_audio(audio)
+            self._analysed_one = True
         logger.info(
             "Analysed %s - %s from Deezer %s (matched by %s) in %.1f s",
             title,

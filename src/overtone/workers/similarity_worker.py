@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class SimilarTracksWorker(QThread):
-    analyzing = pyqtSignal()  # the song isn't in the catalog; analysis started
+    analyzing = pyqtSignal(bool)  # analysis started (song not in the catalog); True if it also loads the models
     similar_ready = pyqtSignal(object)  # list of results, or None if unavailable
 
     def __init__(self, spotify_track, similarity_service, parent=None):

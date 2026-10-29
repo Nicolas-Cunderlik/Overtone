@@ -544,10 +544,13 @@ class SpotifyApp(QWidget):
         except Exception:
             logger.exception("Failed to update chord suggestions")
 
-    def on_similarity_analyzing(self):
+    def on_similarity_analyzing(self, loads_models):
         if self.sender() is not self.current_similarity_worker:
             return
-        self.similar_tracks.set_placeholders(["Analyzing..."])
+        if loads_models:
+            self.similar_tracks.set_placeholders(["Analyzing...", "First song loads", "the models (~1 min)"])
+        else:
+            self.similar_tracks.set_placeholders(["Analyzing..."])
 
     def on_similar_ready(self, similar):
         if self.sender() is not self.current_similarity_worker:

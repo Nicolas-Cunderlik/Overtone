@@ -22,8 +22,10 @@ once per process. Loads the official htdemucs checkpoint from Ultimate Vocal
 Remover's model folder when present, else Demucs downloads it.
 """
 
+import logging
 import os
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,6 +35,8 @@ import torch
 import torchaudio.functional as AF
 
 from .stems import CHANNELS, EMBED_DIMS, EMBED_MODEL, MIN_WINDOW_S, STEM_SR, STEMS
+
+logger = logging.getLogger(__name__)
 
 DEMUCS_MODEL = "htdemucs"
 UVR_DEMUCS_REPO = (
@@ -75,7 +79,9 @@ def separate(wav, sr, separator=None):
     """(channels, samples) mono at STEM_SR, in CHANNELS order: the mix, then
     the Demucs stems."""
     separator = separator or get_separator()
+    started = time.monotonic()
     stems = separator(wav, sr)
+    logger.debug("Separated %.1f s of audio in %.1f s", wav.shape[1] / sr, time.monotonic() - started)
     return stack([mix_channel(wav, sr), *(stems[name].cpu() for name in STEMS)])
 
 
@@ -100,12 +106,14 @@ def embed_channels(channels, extra_windows=(), embedder=None):
     if not windows:  # extra windows lie inside the full audio, so it's too short too
         raise AudioTooShort(duration)
     embedder = embedder or get_embedder()
+    started = time.monotonic()
     emb = np.zeros((len(windows), len(CHANNELS), EMBED_DIMS), np.float32)
     levels = np.zeros((len(windows), len(CHANNELS)), np.float32)
     for w, (start, end) in enumerate(windows):
         excerpt = channels[:, int(start * STEM_SR) : int(end * STEM_SR)]
         emb[w] = embedder(excerpt)
         levels[w] = [rms_db(channel) for channel in excerpt]
+    logger.debug("Embedded %d window(s) in %.1f s", len(windows), time.monotonic() - started)
     return Analysis(np.array(windows, np.float32), emb, levels)
 
 
@@ -176,5 +184,8 @@ def get_embedder():
 def _shared(name, factory):
     with _models_lock:  # the app may ask from two worker threads at once
         if name not in _models:
+            logger.info("Loading %s (%s)", name, factory.__name__)
+            started = time.monotonic()
             _models[name] = factory()
+            logger.info("Loaded %s on %s in %.1f s", name, _models[name].device, time.monotonic() - started)
         return _models[name]
