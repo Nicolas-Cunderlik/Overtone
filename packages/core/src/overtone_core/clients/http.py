@@ -1,24 +1,16 @@
 """HTTP plumbing shared by the service clients and dataset adapters: the
-project user agent and timeout on every request, certificates checked by
-the OS, rate limiting, and resumable downloads."""
+project user agent and timeout on every request, rate limiting, and
+resumable downloads."""
 
 import http.client
 import json
 import os
-import ssl
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
-import truststore
-
 from .. import config
-
-# Certificates are verified by the OS (Windows CryptoAPI), as browsers do. Python's own ssl only
-# reads the roots already in the Windows store, and Windows adds a missing root (e.g. ISRG Root X1,
-# behind GitHub's release downloads) only when its own verifier asks for it.
-SSL_CONTEXT = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
 # Errors a caller records as `failed` and retries on the next run
 NETWORK_ERRORS = (urllib.error.URLError, TimeoutError, json.JSONDecodeError)
@@ -38,11 +30,6 @@ class RateLimiter:
         self._next = max(now, self._next) + self.interval
 
 
-def urlopen(request):
-    """urllib.request.urlopen with the project timeout and the OS certificate check."""
-    return urllib.request.urlopen(request, timeout=config.HTTP_TIMEOUT_S, context=SSL_CONTEXT)
-
-
 def http_get(url, params=None, limiter=None, headers=None):
     """GET with the project user agent and timeout; returns the body bytes."""
     if params:
@@ -50,7 +37,7 @@ def http_get(url, params=None, limiter=None, headers=None):
     if limiter:
         limiter.wait()
     request = urllib.request.Request(url, headers={"User-Agent": config.USER_AGENT, **(headers or {})})
-    with urlopen(request) as response:
+    with urllib.request.urlopen(request, timeout=config.HTTP_TIMEOUT_S) as response:
         return response.read()
 
 
@@ -60,13 +47,10 @@ def download(url, path, chunk_bytes=1 << 20, progress=None, attempts=8):
     already on disk (HTTP Range), and a file is only renamed into place once
     its size matches the server's Content-Length - servers can close a
     connection early without any error, which would otherwise pass a
-    truncated file off as complete. An untrusted certificate fails at once
-    (retrying can't fix it); after `attempts` failures, the ConnectionError
-    names the last one."""
+    truncated file off as complete."""
     if path.exists():
         return path
     tmp = path.with_suffix(path.suffix + ".part")
-    last_error = "the connection closed before the end of the file"
     for attempt in range(attempts):
         have = tmp.stat().st_size if tmp.exists() else 0
         headers = {"User-Agent": config.USER_AGENT}
@@ -74,7 +58,7 @@ def download(url, path, chunk_bytes=1 << 20, progress=None, attempts=8):
             headers["Range"] = f"bytes={have}-"
         try:
             request = urllib.request.Request(url, headers=headers)
-            with urlopen(request) as response:
+            with urllib.request.urlopen(request, timeout=config.HTTP_TIMEOUT_S) as response:
                 resumed = response.status == 206  # else the server ignored Range: start over
                 total = int(response.headers.get("Content-Length", 0)) + (have if resumed else 0)
                 done = have if resumed else 0
@@ -94,13 +78,7 @@ def download(url, path, chunk_bytes=1 << 20, progress=None, attempts=8):
                 tmp.replace(path)
                 return path
             raise
-        except urllib.error.URLError as exc:
-            if isinstance(exc.reason, ssl.SSLCertVerificationError):
-                raise
-            last_error = exc
-        except (TimeoutError, ConnectionError, http.client.IncompleteRead) as exc:
-            last_error = exc
+        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.IncompleteRead):
+            pass
         time.sleep(min(60, 2**attempt))
-    raise ConnectionError(
-        f"Download still incomplete after {attempts} attempts ({last_error}), re-run to resume: {url}"
-    )
+    raise ConnectionError(f"Download still incomplete after {attempts} attempts (re-run to resume): {url}")

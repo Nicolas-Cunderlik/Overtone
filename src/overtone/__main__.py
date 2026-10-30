@@ -12,6 +12,7 @@ import sys
 # torch's own fail to initialise (WinError 1114 in c10.dll), so a later import
 # for analysing a song would crash. Costs ~2 s at startup.
 import torch  # noqa: F401
+import truststore
 
 # isort: split
 from PyQt5.QtWidgets import QApplication
@@ -54,6 +55,9 @@ def self_test():
 
 
 def main(argv=None):
+    # Python checks HTTPS certificates against its own copy of the Windows store, which can lack a
+    # root (e.g. Let's Encrypt's) that Windows only fetches when its own check asks for it
+    truststore.inject_into_ssl()
     argv = sys.argv if argv is None else argv
     if "--self-test" in argv:
         return self_test()

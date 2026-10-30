@@ -15,6 +15,8 @@ import sys
 import zipfile
 from pathlib import Path
 
+import truststore
+
 from ..clients.http import download
 from ..config import PROJECT_ROOT
 from . import model_store
@@ -106,6 +108,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command", choices=["pack", "fetch"])
     args = parser.parse_args(argv)
+    truststore.inject_into_ssl()  # certificates checked by Windows, as in overtone.__main__
     name = release_name(STEM_MODEL, STEM_MODEL_VERSION)
     try:
         if args.command == "pack":

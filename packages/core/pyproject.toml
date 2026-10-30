@@ -19,7 +19,7 @@ dependencies = [
     "joblib==1.6.0",
     "requests==2.34.2",
     "soundfile==0.14.0",
-    "truststore==0.10.5",  # HTTPS certificates checked by the OS (clients/http.py)
+    "truststore==0.10.5",
     "torch==2.14.1",
     "torchaudio==2.11.0",
     "demucs==4.1.0",

@@ -10,7 +10,7 @@ import urllib.request
 
 from .. import config
 from ..secrets import get_secret
-from .http import RateLimiter, http_get, urlopen
+from .http import RateLimiter, http_get
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +51,7 @@ class SpotifyClient:
                 },
             )
             try:
-                with urlopen(request) as response:
+                with urllib.request.urlopen(request, timeout=config.HTTP_TIMEOUT_S) as response:
                     body = json.load(response)
             except urllib.error.HTTPError as exc:
                 if exc.code in (400, 401):  # invalid_client: no request can succeed, so stop the run

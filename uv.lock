@@ -2434,6 +2434,7 @@ dependencies = [
     { name = "pyqt5" },
     { name = "requests" },
     { name = "spotipy" },
+    { name = "truststore" },
 ]
 
 [package.dev-dependencies]
@@ -2455,6 +2456,7 @@ requires-dist = [
     { name = "pyqt5", specifier = "==5.15.11" },
     { name = "requests", specifier = "==2.34.2" },
     { name = "spotipy", specifier = "==2.26.0" },
+    { name = "truststore", specifier = "==0.10.5" },
 ]
 
 [package.metadata.requires-dev]
