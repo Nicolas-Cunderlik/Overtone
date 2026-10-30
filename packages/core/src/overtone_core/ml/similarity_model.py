@@ -6,8 +6,8 @@ Two ways in:
     by Spotify track ID (or any deduplicated alias of it).
   - find_similar_to_features(audio_features): any other song, given its audio
     features in Spotify's legacy audio-features format (from a third-party
-    source - Spotify's own endpoint is restricted for this app). The features are
-    embedded with the same scaler and genre classifier the catalog was.
+    source - Spotify's own endpoint is restricted for this app). The features
+    are embedded with the same scaler and genre classifier the catalog was.
 Results always come from the catalog. An empty result means "not enough data",
 not "no similar tracks exist".
 
