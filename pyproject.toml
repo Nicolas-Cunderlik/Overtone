@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "overtone"
-version = "0.1.0"
+version = "0.1.1"
 description = "Song insights docked beside the Spotify desktop app: AI chord progressions and similar tracks."
 readme = "README.md"
 license = "LicenseRef-Proprietary"
