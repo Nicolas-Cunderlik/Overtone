@@ -189,9 +189,11 @@ begin
   if Succeeded then
     Succeeded := RunStep('Downloading torch and the other packages (about 5 GB on a first install)...',
       Uv + ' pip sync --require-hashes --python ' + Python + ' ' + AddQuotes(AppPath('install\pylock.toml')));
+  // --reinstall --no-cache: always these wheels. uv's cache (kept after a failed run) can hold an
+  // older build with the same version, which it would otherwise install instead.
   if Succeeded then
     Succeeded := RunStep('Installing Overtone...',
-      Uv + ' pip install --no-deps --no-index --find-links ' + AddQuotes(AppPath('install\wheels')) +
+      Uv + ' pip install --reinstall --no-cache --no-deps --no-index --find-links ' + AddQuotes(AppPath('install\wheels')) +
       ' --python ' + Python + ' overtone overtone-core');
   if Succeeded then
     Succeeded := RunStep('Downloading the song catalog index (about 100 MB)...',
