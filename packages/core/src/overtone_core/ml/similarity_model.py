@@ -5,8 +5,8 @@ Two ways in:
   - find_similar(track_id): a song in the static training catalog, looked up
     by Spotify track ID (or any deduplicated alias of it).
   - find_similar_to_features(audio_features): any other song, given its audio
-    features in Spotify's legacy audio-features format (e.g. from FreqBlog -
-    Spotify's own endpoint is restricted for this app). The features are
+    features in Spotify's legacy audio-features format (from a third-party
+    source - Spotify's own endpoint is restricted for this app). The features are
     embedded with the same scaler and genre classifier the catalog was.
 Results always come from the catalog. An empty result means "not enough data",
 not "no similar tracks exist".

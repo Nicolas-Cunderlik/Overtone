@@ -11,7 +11,7 @@ __pycache__/
 *.pyc
 *.egg-info/
 
-# PyInstaller output
+# Build output: wheels, the installer, model release zips (scripts/build_installer.py, model_release pack)
 build/
 dist/
 

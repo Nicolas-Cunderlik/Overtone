@@ -4,6 +4,8 @@
 
 A desktop panel for music producers that sits beside the Spotify app and follows whatever is playing: chord progressions in the style of the current song, exported as MIDI, and similar songs found by how they actually sound.
 
+**[Download for Windows](https://github.com/Nicolas-Cunderlik/Overtone/releases/latest)**, then follow [Install](#install).
+
 ## Why
 
 Streaming recommenders lean on listening behaviour (what people play together) and whole-mix descriptors like energy or danceability. That favours songs that are already popular, and it can't say *which part* of two songs is alike: a folk vocal over a trap beat matches neither folk nor trap well.
@@ -65,7 +67,8 @@ The stem-similarity study (`research/stem_similarity`) has separated and embedde
 
 ## Roadmap
 
-- **Installer**: a small setup program that installs the app, torch and the models with uv from the lock file.
+- **Update check**: tell the user when a newer version is out (app and model versions move together).
+- **Hosted backend**: an Overtone server that holds the OpenAI key and runs the model, so the app becomes a small client; local first, then in the cloud.
 - **Faster ABX ratings**: a rating app that picks the most informative comparisons, in short sessions.
 - **Explanations and steering**: "recommended because: similar bass", and requests like "like this, but match the drums".
 - **Personal taste**: a producer-specific similarity layered on the population model.
@@ -75,12 +78,40 @@ The stem-similarity study (`research/stem_similarity`) has separated and embedde
 
 ## Requirements
 
-- Windows (the panel docks to Spotify's window through the Win32 API)
-- Python 3.13, [uv](https://docs.astral.sh/uv/) and the Spotify desktop app
-- A Spotify developer app (client ID/secret, redirect URI `http://127.0.0.1:<port>`) and an OpenAI API key
+- Windows 10 or 11, 64-bit (the panel docks to Spotify's window through the Win32 API), and the Spotify desktop app
+- A Spotify developer app (client ID/secret, redirect URI `http://127.0.0.1:<port>`) and, for chord suggestions, an OpenAI API key
+- About 10 GB of disk space: Python, torch, the model weights and the catalog index
 - An NVIDIA GPU makes analysing songs outside the catalog fast (about 1.5 s per song on an RTX 3070); without one it runs on the CPU (about 35 s per song)
 
-## Setup
+## Install
+
+You don't need Python, git or any code. You need the Spotify desktop app and about 10 GB of free disk space.
+
+**1. Make your Spotify keys** (about 5 minutes, once). Overtone reads what's playing through your own Spotify developer app:
+
+1. Log in at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) with your Spotify account and click **Create app**.
+2. Give it any name and description. Under **Redirect URIs** add `http://127.0.0.1:4000`, tick **Web API**, accept the terms and save.
+3. In the app's **Settings**, copy the **Client ID**, then click **View client secret** and copy that too.
+
+Optional: an [OpenAI API key](https://platform.openai.com/api-keys) for the chord suggestions. Without one, everything else still works.
+
+**2. Run the installer.** Download `Overtone-setup-<version>.exe` from the [latest release](https://github.com/Nicolas-Cunderlik/Overtone/releases/latest) and run it. Windows SmartScreen warns because the installer isn't signed: click **More info**, then **Run anyway**. When it asks, paste your keys. Then setup downloads the rest, which takes a while (about 10 GB on a first install):
+
+1. Python 3.13 and the exact packages Overtone was tested with (torch, Demucs, MuQ...), checked against their hashes.
+2. The catalog index (about 100 MB), checked against the hash pinned in the code.
+3. The Demucs and MuQ-MuLan model weights (about 4 GB), followed by a quick self-test.
+
+**3. Start Overtone** from the Start menu while Spotify is open. The first time, a browser window asks you to allow access to your Spotify account.
+
+Everything goes into `%LOCALAPPDATA%\Programs\Overtone`; your keys are in the `.env` file there, if you need to change them. Running a newer installer upgrades in place and keeps your keys. Uninstall from Windows Settings → Apps. If setup stops (for example, the connection drops), run it again: it continues where it stopped, and the details are in `install\install.log` in that folder.
+
+The models' licenses are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): the MuQ-MuLan weights are for non-commercial use only.
+
+Maintainers: `python scripts/build_installer.py` builds the installer into `dist/`; attach it to a GitHub Release tagged `v<version>`.
+
+## Development setup
+
+Needs Python 3.13 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync                           # one .venv for the app and the research pipeline, from uv.lock (~3 GB with CUDA torch)
@@ -88,7 +119,13 @@ uv sync                           # one .venv for the app and the research pipel
 copy .env.example .env            # then fill in the keys
 ```
 
-Similar tracks need the catalog stem index in `models/stem-muq/v1/`. There is no download for it yet (the planned installer will fetch it). Until then, build it with the research pipeline. That fetches about 30k Deezer previews, then separates and embeds them on a GPU, so it takes a long time. With the venv active (`.venv\Scripts\activate`):
+Similar tracks need the catalog stem index in `models/stem-muq/v1/`. Download the published one (about 100 MB, checked against the hash in `paths.py`):
+
+```bash
+python -m overtone_core.ml.model_release fetch
+```
+
+Or build it with the research pipeline. That fetches about 30k Deezer previews, then separates and embeds them on a GPU, so it takes a long time. With the venv active (`.venv\Scripts\activate`):
 
 ```bash
 python -m overtone_core.ml.download_dataset      # the catalog's song list, into data/
@@ -108,6 +145,8 @@ python -m stemsim index --weights-run <run id>   # writes models/stem-muq/vN/
 
 `STEM_MODEL_VERSION` in `packages/core/src/overtone_core/ml/paths.py` must name the version `index` wrote (`v1` on a first build). Without the index, Similar Tracks shows an error and `overtone --self-test` fails. Demucs and MuQ-MuLan download their weights on first use.
 
+To publish a new index version, `python -m overtone_core.ml.model_release pack` writes `dist/models/stem-muq-vN.zip` and prints its sha256. Upload the zip to a GitHub Release tagged `stem-muq-vN`, then move `STEM_MODEL_VERSION` and `STEM_MODEL_SHA256` in `paths.py` together.
+
 The older feature model is kept as the evaluation baseline (downloads an 8 MB public dataset into `data/`, trains into `models/` in about a minute):
 
 ```bash
@@ -119,7 +158,7 @@ python -m overtone_core.ml.train
 
 ```bash
 overtone                  # or: python -m overtone. The first run opens a Spotify login in the browser
-overtone --self-test      # headless check: loads the stem model and scores a catalog song, exits 0 if OK
+overtone --self-test      # headless check: scores a catalog song and analyses a few seconds of audio, exits 0 if OK
 ```
 
 The login token, log, chord cache and the stem vectors of analysed songs live in `%LOCALAPPDATA%\Overtone` (logs in `logs\overtone.log`).
@@ -143,6 +182,7 @@ Run with any Python - each uses the repo's virtualenv itself:
 | `scripts/resume_pipeline.py` | Restarts downloads / GPU stages in the background; skips stages already running |
 | `scripts/launch_mlflow.py` | MLflow UI over the research experiment runs (each run has a `report.md`) |
 | `scripts/launch_rating_server.py` | The ABX rating app for adding your own similarity judgments |
+| `scripts/build_installer.py` | Builds `dist/Overtone-setup-<version>.exe` (needs Inno Setup 6: `winget install JRSoftware.InnoSetup`) |
 
 ## Project layout
 
@@ -159,12 +199,14 @@ packages/core/              overtone_core: shared by the app and the research pi
   ml/                         stem model (contract, analysis, scoring), model store, dedup, feature model (baseline)
   clients/                    Deezer and Spotify API clients, HTTP plumbing
   matching.py                 whether a search hit is the recording asked for
-  secrets.py, config.py       API keys from .env; repo root, HTTP settings
+  secrets.py, config.py       API keys from .env; repo or install root, HTTP settings
 research/stem_similarity/   stem-similarity study (stemsim)
   stemsim/                    datasets, registry, stages (isrc, audio, separate, embed), index, experiments, rating app
 scripts/                    standard-library launchers (see above)
+installer/                  Inno Setup script for the Windows installer (built by scripts/build_installer.py)
 data/                       downloaded dataset (gitignored)
 models/                     model versions, models/<model>/<version>/ (gitignored)
+dist/                       the built installer and model release zips (gitignored)
 tests/                      unit/ (mirrors src/overtone/; unit/core/ and unit/research/ for the other packages) and integration/
 uv.lock                     exact versions for the whole workspace
 ```

@@ -25,11 +25,13 @@ The owner steers this project and wants to understand it deeply, not to have it 
 |---|---|
 | Run app | `overtone` (or `python -m overtone`) |
 | Install / update the environment | `uv sync` (after editing any `pyproject.toml`: `uv lock`, then `uv sync`) |
-| Headless smoke check | `overtone --self-test` (exit 0 = the stem model loads and a catalog lookup works) |
+| Headless smoke check | `overtone --self-test` (exit 0 = a catalog lookup works and Demucs + MuQ analyse a few seconds of synthetic audio) |
 | Tests | `pytest` (unit only: `pytest tests/unit`) |
 | Lint + format | `pre-commit run --all-files` (ruff check/format + hygiene hooks) |
 | Type check | `pyright` (basic mode over `src/` and `packages/core/src/`, config in `pyproject.toml`; also runs in CI) |
 | Build the catalog stem index | `.venv\Scripts\python -m stemsim index --weights-run <MLflow run id>` (from `research/stem_similarity`), then move `STEM_MODEL_VERSION` in `overtone_core/ml/paths.py` |
+| Publish / fetch the catalog stem index | `python -m overtone_core.ml.model_release pack` (zip + sha256 for a GitHub Release tagged `stem-muq-vN`; then move `STEM_MODEL_SHA256` with the version) / `... fetch` |
+| Build the Windows installer | `python scripts/build_installer.py` (needs Inno Setup 6) -> `dist/Overtone-setup-<version>.exe` |
 | Train the feature model (evaluation baseline) | `python -m overtone_core.ml.download_dataset` then `python -m overtone_core.ml.train`; compare variants with `python -m overtone_core.ml.evaluate` |
 | Run CI checks locally | `python scripts/run_checks.py` |
 | Research pipeline overview | `python scripts/pipeline_status.py` |
@@ -55,6 +57,7 @@ One venv for everything: `.venv` at the repo root, built by `uv sync` from `uv.l
 - **AI chords:** `ai_service.py` holds the prompt (the source of truth for prompt wording). The output contract is `music/chord_schema.py`: pydantic shape, sent to OpenAI as a strict JSON schema, plus `validate_suggestions()` for musical rules, with errors fed back for up to 3 retries. Valid results are cached 24h on disk (`chord_cache.py`) to avoid re-billing.
 - **Similar tracks** (`services/similarity_service.py`): the stem model. Its index (`models/stem-muq/<version>/`: per-channel MuQ-MuLan vectors of ~20.7k catalog songs, fitted weights) is built by `stemsim index` and read by `overtone_core/ml/stem_model.py` (z-scored cosine per channel, silence gating, weighted sum; per-channel scores come with every result and are logged, not shown). A catalog song uses its stored vectors. Any other song uses its Deezer preview (`overtone_core/clients/deezer.py`: ISRC, else title search; never the device's audio), analysed by `overtone_core/ml/stem_analysis.py` (Demucs + MuQ, GPU if present), with the vectors cached by track id (`services/stem_cache.py`). The research embed stage runs the same analysis, so live and catalog vectors match exactly. No fallback model: failures show a generic message and log the detail.
 - **Feature model** (`overtone_core/ml/`, `feature-knn`): Spotify legacy audio features + genre-classifier probabilities, cosine kNN. No longer used by the app; kept as the evaluation baseline (`train.py` writes it, `similarity_model.py` reads it).
+- **Packaging** (`installer/overtone.iss`, built by `scripts/build_installer.py`): a small Inno Setup exe holding the app and core wheels, a `pylock.toml` exported from `uv.lock` (exact versions + hashes) and a pinned `uv.exe`. Setup installs per user into `%LOCALAPPDATA%\Programs\Overtone`: uv-managed Python and `.venv`, the catalog index (`model_release fetch`, from a GitHub Release, sha256 pinned in `paths.py`), then `overtone --self-test`, which downloads the Demucs/MuQ weights into `weights/`. `overtone_core.config.find_root` tells a checkout (repo root) from an install (the venv's parent); `models/`, `.env` and `weights/` resolve from that root. Shortcuts start `overtone-gui` (no console). Each app release pins its model version, so app and index always match; the planned server (SSM-40) replaces local inference.
 
 ## Conventions
 
@@ -68,10 +71,9 @@ One venv for everything: `.venv` at the repo root, built by `uv sync` from `uv.l
 
 ## Secrets and data
 
-- Secrets live only in `.env` at the repo root (template: `.env.example`), unless `OVERTONE_ENV_FILE` points elsewhere. Read them with `overtone_core.secrets.get_secret(name)` (no heavy imports, loads the file lazily), never by parsing `.env` yourself. Never log, print or commit it. `logging_config.py` caps spotipy/urllib3 logging at INFO because their DEBUG output leaks the client secret and tokens.
+- Secrets live only in `.env` at the repo root (an install: its install folder, written by the installer; template: `.env.example`), unless `OVERTONE_ENV_FILE` points elsewhere. Read them with `overtone_core.secrets.get_secret(name)` (no heavy imports, loads the file lazily), never by parsing `.env` yourself. Never log, print or commit it. `logging_config.py` caps spotipy/urllib3 logging at INFO because their DEBUG output leaks the client secret and tokens.
 - Runtime state (Spotify token, log, chord cache, live songs' stem vectors) goes to `config.APP_DATA_DIR` (`%LOCALAPPDATA%\Overtone`), never the repo. Tests that run app code should point `OVERTONE_DATA_DIR` at a temp dir.
-- Gitignored and regenerable: `data/` (dataset), `models/` (model versions; the SSM-2 installer will download them), research audio and embeddings. The `check-added-large-files` hook enforces this.
-- Spotify's audio-features endpoint is restricted for this app. Spotify-format features for songs outside the catalog (the stem model needs none) come from FreqBlog (`FREQBLOG_API_KEY`), which allows 1000 requests/month. The app-side cap is 100/day, with a permanent cache by track_id and a catalog check before any request.
+- Gitignored and regenerable: `data/` (dataset), `models/` (model versions; published ones are fetched with `model_release fetch`), `build/` and `dist/` (installer and release zips), research audio and embeddings. The `check-added-large-files` hook enforces this.
 
 ## Tests
 

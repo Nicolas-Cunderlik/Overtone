@@ -18,7 +18,8 @@ repeatable; the trick's ~0.2 dB SDR gain doesn't matter for embeddings.
 
 Needs torch, Demucs and MuQ; the models load on first use (GPU if present),
 once per process. Loads the official htdemucs checkpoint from Ultimate Vocal
-Remover's model folder when present, else Demucs downloads it.
+Remover's model folder when present, else Demucs downloads it. Downloaded
+weights go to config.WEIGHTS_DIR in an install, else the default caches.
 """
 
 import logging
@@ -33,9 +34,15 @@ import soundfile as sf
 import torch
 import torchaudio.functional as AF
 
+from ..config import WEIGHTS_DIR
 from .stems import CHANNELS, DEMUCS_MODEL, EMBED_DIMS, EMBED_MODEL, MIN_WINDOW_S, STEM_SR, STEMS
 
 logger = logging.getLogger(__name__)
+
+if WEIGHTS_DIR:
+    # Set before MuQ imports Hugging Face, which reads HF_HOME once, at import
+    os.environ.setdefault("HF_HOME", os.path.join(WEIGHTS_DIR, "huggingface"))
+    os.environ.setdefault("TORCH_HOME", os.path.join(WEIGHTS_DIR, "torch"))
 
 # Ultimate Vocal Remover's copy of the official checkpoint; None without LOCALAPPDATA
 # (e.g. Linux), rather than a path relative to the working directory
