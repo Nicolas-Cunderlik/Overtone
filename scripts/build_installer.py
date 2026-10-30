@@ -29,6 +29,7 @@ BUILD = REPO / "build" / "installer"
 DIST = REPO / "dist"
 ISS = REPO / "installer" / "overtone.iss"
 PACKAGES = ("overtone", "overtone-core")  # the app and what it imports; stemsim is research only
+SETUPTOOLS_BUILD_DIRS = (REPO / "build", REPO / "packages" / "core" / "build")  # one per package in PACKAGES
 
 # The uv the installer bundles; keep in step with CI's (.github/workflows/ci.yml)
 UV_VERSION = "0.13.6"
@@ -46,9 +47,10 @@ ISCC_CANDIDATES = (
 def main():
     iscc = find_iscc()
     version = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
-    # All of build/, not just ours: setuptools reuses build/lib, so a file dropped from the
-    # package (e.g. the excluded font) would otherwise stay in the next wheel
-    shutil.rmtree(REPO / "build", ignore_errors=True)
+    # Every package's whole build/: setuptools reuses build/lib, so a file dropped
+    # from a package (e.g. the excluded font) would otherwise stay in its next wheel
+    for folder in SETUPTOOLS_BUILD_DIRS:
+        shutil.rmtree(folder, ignore_errors=True)
     (BUILD / "wheels").mkdir(parents=True)
 
     for package in PACKAGES:
