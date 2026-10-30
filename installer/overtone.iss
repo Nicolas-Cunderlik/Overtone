@@ -191,7 +191,7 @@ begin
       Uv + ' pip sync --require-hashes --python ' + Python + ' ' + AddQuotes(AppPath('install\pylock.toml')));
   if Succeeded then
     Succeeded := RunStep('Installing Overtone...',
-      Uv + ' pip install --no-deps --no-index --find-links ' + AddQuotes(AppPath('install\wheels')) +
+      Uv + ' pip install --reinstall --no-cache --no-deps --no-index --find-links ' + AddQuotes(AppPath('install\wheels')) +
       ' --python ' + Python + ' overtone overtone-core');
   if Succeeded then
     Succeeded := RunStep('Downloading the song catalog index (about 100 MB)...',
