@@ -47,7 +47,7 @@ ISCC_CANDIDATES = (
 def main():
     iscc = find_iscc()
     version = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
-    # Every package's whole build/, not just ours: setuptools reuses build/lib, so a file dropped
+    # Every package's whole build/: setuptools reuses build/lib, so a file dropped
     # from a package (e.g. the excluded font) would otherwise stay in its next wheel
     for folder in SETUPTOOLS_BUILD_DIRS:
         shutil.rmtree(folder, ignore_errors=True)

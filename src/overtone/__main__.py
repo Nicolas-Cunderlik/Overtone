@@ -55,8 +55,6 @@ def self_test():
 
 
 def main(argv=None):
-    # Python checks HTTPS certificates against its own copy of the Windows store, which can lack a
-    # root (e.g. Let's Encrypt's) that Windows only fetches when its own check asks for it
     truststore.inject_into_ssl()
     argv = sys.argv if argv is None else argv
     if "--self-test" in argv:
