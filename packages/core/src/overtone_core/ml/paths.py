@@ -22,6 +22,13 @@ STEM_MODEL = "stem-muq"  # MuQ-MuLan embeddings of the mix and Demucs stems, fit
 # (built by research/stem_similarity: python -m stemsim index; loaded by stem_model.py)
 STEM_MODEL_VERSION = "v1"
 
+# Released versions (model_release.py): each version is a zip on its own GitHub Release, tagged <model>-<version>.
+# The pinned sha256 is the published zip's; it moves together with STEM_MODEL_VERSION.
+MODEL_RELEASE_URL = (
+    "https://github.com/Nicolas-Cunderlik/Overtone/releases/download/{model}-{version}/{model}-{version}.zip"
+)
+STEM_MODEL_SHA256 = "40fcefed6bfb58d875ccec9537db064fc0e688feb6e74b66b1dfa172016cca46"
+
 # feature-knn files
 INDEX_FILE = "index.joblib"  # NearestNeighbors fit on the embedding
 FEATURES_FILE = "features.joblib"  # standardized audio features (dedup distance space)

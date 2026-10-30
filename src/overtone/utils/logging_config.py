@@ -17,7 +17,7 @@ def configure_logging():
 
     fmt = Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
 
-    # The windowed (console=False) build has no stderr to write to
+    # The windowed launcher (overtone-gui) has no stderr to write to
     if sys.stderr is not None:
         ch = StreamHandler()
         ch.setLevel(logging.DEBUG)

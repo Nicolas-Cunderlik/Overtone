@@ -36,3 +36,17 @@ def test_versions_sort_numerically_and_ignore_other_folders(tmp_path):
 
     assert model_store.versions("demo", root=tmp_path) == ["v1", "v2", "v10"]
     assert model_store.versions("missing", root=tmp_path) == []
+
+
+def test_verify_reports_missing_and_changed_files(tmp_path):
+    with model_store.new_version("demo", root=tmp_path) as build:
+        (build.path / "a.bin").write_bytes(b"a")
+        (build.path / "b.bin").write_bytes(b"b")
+    assert model_store.verify(build.path) == []
+
+    (build.path / "a.bin").write_bytes(b"changed")
+    (build.path / "b.bin").unlink()
+    assert model_store.verify(build.path) == ["a.bin doesn't match its size or sha256", "missing b.bin"]
+
+    (build.path / "manifest.json").unlink()
+    assert model_store.verify(build.path)[0].startswith("unreadable manifest.json")

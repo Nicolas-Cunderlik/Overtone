@@ -52,6 +52,24 @@ def read_manifest(model, version, root=MODELS_DIR):
     return json.loads((version_dir(model, version, root) / MANIFEST_FILE).read_text(encoding="utf-8"))
 
 
+def verify(folder):
+    """What's wrong with a version folder's files against its manifest, as
+    messages; empty if every listed file is there with its size and sha256."""
+    folder = Path(folder)
+    try:
+        files = json.loads((folder / MANIFEST_FILE).read_text(encoding="utf-8"))["files"]
+    except (OSError, ValueError, KeyError) as exc:
+        return [f"unreadable {MANIFEST_FILE}: {exc}"]
+    problems = []
+    for name, expected in files.items():
+        path = folder / name
+        if not path.is_file():
+            problems.append(f"missing {name}")
+        elif _describe(path) != expected:
+            problems.append(f"{name} doesn't match its size or sha256")
+    return problems
+
+
 @contextmanager
 def new_version(model, source=None, params=None, root=MODELS_DIR):
     """Builds the next version of `model`.
@@ -102,12 +120,17 @@ class _Build:
     version: str | None = None  # set once the build is renamed into place
 
 
-def _describe(path):
+def sha256(path):
+    """Hex sha256 of a file, read in chunks (index files run to hundreds of MB)."""
     digest = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             digest.update(chunk)
-    return {"sha256": digest.hexdigest(), "bytes": path.stat().st_size}
+    return digest.hexdigest()
+
+
+def _describe(path):
+    return {"sha256": sha256(path), "bytes": path.stat().st_size}
 
 
 def _git(*args):
