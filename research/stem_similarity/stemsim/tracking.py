@@ -7,8 +7,8 @@ Every run records, besides its own params/metrics/artifacts:
                           this is what makes two runs comparable
   report.md               purpose, approach, results and findings in prose
                           (experiments/report.py; findings are added later)
-Browse runs:  research/stem_similarity/.venv/Scripts/mlflow ui --backend-store-uri sqlite:///data/mlflow.db
-(run from research/stem_similarity), then open http://127.0.0.1:5000
+Browse runs:  python scripts/launch_mlflow.py (from the repo root), which opens
+http://127.0.0.1:5000
 """
 
 import subprocess

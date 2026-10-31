@@ -428,7 +428,7 @@ def results_markdown(table, diff_table=None, weights=None, split_noise=None):
 def write_report(run, table, diff_table, weights, split_noise=None, runtime_s=None):
     params = run.data.params
     command = (
-        f".venv/Scripts/python -m stemsim.experiments.stem_weights --run-name {run.info.run_name} "
+        f"../../.venv/Scripts/python -m stemsim.experiments.stem_weights --run-name {run.info.run_name} "
         f"--l2 {params.get('l2', L2)} --folds {params.get('folds', FOLDS)} --repeats {params.get('cv_repeats', 1)}"
     )
     text = report.render(
