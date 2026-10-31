@@ -10,8 +10,8 @@ Dictation: the note box's mic button records in the browser, which posts
 16 kHz samples to /api/transcribe; dictation.py transcribes them locally and
 only the text is kept (--no-dictation skips loading the model).
 
-Run from research/stem_similarity (or use scripts/launch_rating_server.py):
-  .venv/Scripts/python -m stemsim rate [--session NAME_OR_PATH] [--rater ID]
+Run from research/stem_similarity with the repo's venv active (or use scripts/launch_rating_server.py):
+  python -m stemsim rate [--session NAME_OR_PATH] [--rater ID]
 Then open http://localhost:8765
 """
 

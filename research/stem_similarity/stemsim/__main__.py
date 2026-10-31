@@ -1,4 +1,4 @@
-"""Command line for the pipeline. Run from research/stem_similarity with its venv:
+"""Command line for the pipeline. Run from research/stem_similarity with the repo's venv active:
 
   python -m stemsim datasets                         list adapters
   python -m stemsim ingest spotify_catalog           register the app's catalog (seeds)

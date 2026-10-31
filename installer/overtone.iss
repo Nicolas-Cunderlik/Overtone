@@ -14,6 +14,8 @@
 
 #define AppName "Overtone"
 #define GuiExe "{app}\.venv\Scripts\overtone-gui.exe"
+; overtone-gui.exe is uv's generic launcher with no icon of its own, so shortcuts name the icon
+#define AppIcon "{app}\overtone.ico"
 
 [Setup]
 AppId={{71C73F29-38C4-46BA-ADB4-F847C1CB7036}
@@ -36,7 +38,8 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayName={#AppName}
-UninstallDisplayIcon={#GuiExe}
+UninstallDisplayIcon={#AppIcon}
+SetupIconFile=overtone.ico
 CloseApplications=yes
 SetupLogging=yes
 ; Off: the commands Setup runs inherit it (despite the help saying otherwise), and it blocks the
@@ -52,6 +55,7 @@ Type: filesandordirs; Name: "{app}\install"
 Source: "{#BuildDir}\uv.exe"; DestDir: "{app}\install"
 Source: "{#BuildDir}\pylock.toml"; DestDir: "{app}\install"
 Source: "{#BuildDir}\wheels\*.whl"; DestDir: "{app}\install\wheels"
+Source: "overtone.ico"; DestDir: "{app}"
 Source: "..\LICENSE"; DestDir: "{app}"
 Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"
 
@@ -59,8 +63,8 @@ Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Icons]
-Name: "{autoprograms}\{#AppName}"; Filename: "{#GuiExe}"; WorkingDir: "{app}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{#GuiExe}"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{autoprograms}\{#AppName}"; Filename: "{#GuiExe}"; WorkingDir: "{app}"; IconFilename: "{#AppIcon}"
+Name: "{autodesktop}\{#AppName}"; Filename: "{#GuiExe}"; WorkingDir: "{app}"; IconFilename: "{#AppIcon}"; Tasks: desktopicon
 
 [Run]
 Filename: "{#GuiExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent; Check: SetupSucceeded

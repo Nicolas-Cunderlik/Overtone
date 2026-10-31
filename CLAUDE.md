@@ -29,7 +29,7 @@ The owner steers this project and wants to understand it deeply, not to have it 
 | Tests | `pytest` (unit only: `pytest tests/unit`) |
 | Lint + format | `pre-commit run --all-files` (ruff check/format + hygiene hooks) |
 | Type check | `pyright` (basic mode over `src/` and `packages/core/src/`, config in `pyproject.toml`; also runs in CI) |
-| Build the catalog stem index | `.venv\Scripts\python -m stemsim index --weights-run <MLflow run id>` (from `research/stem_similarity`), then move `STEM_MODEL_VERSION` in `overtone_core/ml/paths.py` |
+| Build the catalog stem index | `python -m stemsim index --weights-run <MLflow run id>` (from `research/stem_similarity`), then move `STEM_MODEL_VERSION` in `overtone_core/ml/paths.py` |
 | Publish / fetch the catalog stem index | `python -m overtone_core.ml.model_release pack` (zip + sha256 for a GitHub Release tagged `stem-muq-vN`; then move `STEM_MODEL_SHA256` with the version) / `... fetch` |
 | Build the Windows installer | `python scripts/build_installer.py` (needs Inno Setup 6) -> `dist/Overtone-setup-<version>.exe` |
 | Train the feature model (evaluation baseline) | `python -m overtone_core.ml.download_dataset` then `python -m overtone_core.ml.train`; compare variants with `python -m overtone_core.ml.evaluate` |
@@ -37,7 +37,7 @@ The owner steers this project and wants to understand it deeply, not to have it 
 | Research pipeline overview | `python scripts/pipeline_status.py` |
 | Restart pipeline stages (background, no duplicates) | `python scripts/resume_pipeline.py [--gpu \| --audio \| --dry-run]` |
 | MLflow UI / ABX rating app | `python scripts/launch_mlflow.py` / `python scripts/launch_rating_server.py` |
-| Build the next ABX rating session | `.venv\Scripts\python -m stemsim session` (from `research/stem_similarity`) |
+| Build the next ABX rating session | `python -m stemsim session` (from `research/stem_similarity`) |
 
 `scripts/` are standard-library launchers: run them with any Python, they use the repo's venv themselves.
 
@@ -48,7 +48,7 @@ One venv for everything: `.venv` at the repo root, built by `uv sync` from `uv.l
 - **Packages** (one uv workspace, one `uv.lock`):
   - `src/overtone/`: the PyQt app (UI, workers, services). Module paths below without a prefix are relative to it.
   - `packages/core/src/overtone_core/`: code the app and research both use (`ml/`, `matching.py`, `clients/`, `secrets.py`, `config.py`).
-  - `research/stem_similarity/stemsim/`: the research pipeline, experiments and ABX rating app.
+  - `research/stem_similarity/stemsim/`: the research pipeline, experiments and ABX rating app. Its own guide: `research/stem_similarity/CLAUDE.md`.
 
   The app and research both import core; neither imports the other, and core imports neither. Code both need goes to core.
 - **Threading:** the UI thread never does network or disk-heavy work. Each job is a `QThread` subclass in `workers/` that emits results as signals: `PlaybackPollWorker` (Spotify poll), `PlayTrackWorker`, `FetchDataWorker` (album art, AI), `SimilarTracksWorker` (similar tracks, which may need a song analysed). `SpotifyApp` drops results from superseded workers (`sender() is not self.current_worker`) and asks a superseded `SimilarTracksWorker` to stop (`requestInterruption()`).

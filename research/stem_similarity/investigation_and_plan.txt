@@ -308,6 +308,11 @@ The listener (project author) rates triplets.
 
 9.3 Stages - each a separate, resumable process
 
+  (The plan as written on 2026-10-20. The built stages differ - e.g. stems
+  are FLAC, there are no timbre/targets stages, and an isrc stage runs before
+  audio. CLAUDE.md in this folder and the stemsim module docstrings describe
+  the pipeline as it is.)
+
   All stages share one registry (SQLite, WAL mode: concurrent readers plus
   one writer per stage). Each stage processes only rows that are ready
   (inputs exist) and not yet done (its output is missing). It writes its
