@@ -2,7 +2,7 @@
 
 A desktop panel for music producers that docks beside the Spotify app and follows whatever is playing: it finds similar songs by how they actually sound, and suggests chord progressions in the style of the current song.
 
-<!-- Demo GIF: replace this comment with the GitHub user-attachments URL -->
+<img width="2020" height="821" alt="demo" src="https://github.com/user-attachments/assets/af7ce7a2-5310-4110-8c8c-e466f9ccd07d" />
 
 **[Download for Windows](https://github.com/Nicolas-Cunderlik/Overtone/releases/latest)**, then follow [Install](#install).
 
