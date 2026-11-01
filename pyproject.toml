@@ -19,9 +19,9 @@ dependencies = [
     "PyQt5==5.15.11",
     "requests==2.34.2",
     "spotipy==2.26.0",
-    "openai==3.37.0",
-    "pydantic==2.14.1",
-    "platformdirs==4.13.5",
+    "openai==3.41.0",
+    "pydantic==2.14.2",
+    "platformdirs==4.14.0",
     "truststore==0.10.5",
 ]
 
@@ -29,9 +29,9 @@ dependencies = [
 # `uv sync` installs this group: the dev environment is the app plus the research pipeline
 dev = [
     "stemsim",
-    "pytest==9.1.1",
+    "pytest==9.2.0",
     "pre-commit==4.7.0",
-    "ruff==0.17.2",  # keep in step with the rev in .pre-commit-config.yaml
+    "ruff==0.17.3",  # keep in step with the rev in .pre-commit-config.yaml
     "pyright==1.1.414",  # same engine as Pylance; needs Node.js (fetched automatically if missing)
 ]
 
